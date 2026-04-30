@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { OpenAI } from "openai";
 import { generatePlaceholderImage } from "../utils/imageGenerator";
 export { generatePlaceholderImage };
@@ -7,7 +7,10 @@ import { collection, query, where, getDocs, setDoc, doc } from "firebase/firesto
 import { hashText } from "../lib/utils";
 import { compressImage, uploadImage, generateImageHash } from "../utils/imageUtils";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+// Initialize Gemini with safety for process.env
+const geminiKey = process.env.GEMINI_API_KEY || (import.meta as any).env.VITE_GEMINI_API_KEY;
+const ai = new GoogleGenerativeAI(geminiKey!);
+
 const openai = new OpenAI({
   apiKey: (import.meta as any).env.VITE_OPENAI_API,
   dangerouslyAllowBrowser: true
@@ -76,52 +79,25 @@ export async function getStoryImage(text: string, stylePrompt: string, context?:
     console.warn("Cache check failed:", error);
   }
 
-  // Tier 1: Gemini AI Image Generation
+  // Tier 1: Gemini AI Image Generation (Fallback attempt, though standard Gemini usually returns text)
   try {
     console.log("Generating image for:", text, "with style:", stylePrompt);
     
-    // Explicit prompt to avoid text and maintain consistency
-    const systemPrompt = `You are a world-class storybook illustrator. Create a whimsical, consistent, and beautiful illustration.
-
-STYLE GUIDELINES:
-${stylePrompt}
-
-CONSISTENCY: The characters and setting must match the previous story context provided. 
-
-NO TEXT: ABSOLUTELY NO LETTERS, WORDS, OR TITLES IN THE IMAGE. 
-- Only purely visual storytelling. 
-- No Korean or English text. 
-- Even if there is dialogue in the prompt, DO NOT show it visually. 
-- The only exception is very minimal onomatopoeia if essential, but prefer NO text at all.
-
-STORY CONTEXT: ${context || 'Beginning of a new story'}
-
-CURRENT SCENE: ${text}`;
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
-      contents: {
-        parts: [
-          {
-            text: systemPrompt,
-          },
-        ],
-      },
-      config: {
-        imageConfig: {
-          aspectRatio: "1:1"
-        }
-      }
+    const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const systemPrompt = `You are a storybook illustrator. Create an image for: "${text}". Style: ${stylePrompt}. Context: ${context || ''}. NO TEXT in image.`;
+    
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
     });
-
-    console.log("Gemini response received. Candidates:", response.candidates?.length);
+    
+    const response = await result.response;
+    console.log("Gemini response received.");
 
     let rawBlob: Blob | null = null;
     let mimeType = 'image/png';
-    // The response may contain both image and text parts
+    
     if (response.candidates && response.candidates[0]?.content?.parts) {
       const parts = response.candidates[0].content.parts;
-      
       for (const part of parts) {
         if (part.inlineData) {
           mimeType = part.inlineData.mimeType || 'image/png';
@@ -132,24 +108,22 @@ CURRENT SCENE: ${text}`;
     }
 
     if (!rawBlob) {
-      const finishReason = response.candidates?.[0]?.finishReason;
-      const textResponse = response.text;
-      console.warn("No image in Gemini response. Finish reason:", finishReason);
-      if (textResponse) console.warn("Model response text:", textResponse);
-      throw new Error(textResponse || "No image part in Gemini response");
+      throw new Error("Gemini did not return an image part (standard behavior for text-only models). Falling back to OpenAI...");
     }
 
     return await processAndCacheImage(rawBlob, hash, text, 'ai');
 
   } catch (error: any) {
-    console.error("Gemini Generation failed:", error);
+    console.warn("Gemini stage ended:", error.message || error);
     
     // Check if it's a quota error
     const isGeminiQuota = error?.message?.includes('429') || error?.message?.includes('quota');
+    
+    // Use the OpenAI key from Vite env
     const openaiKey = (import.meta as any).env.VITE_OPENAI_API;
 
     if (openaiKey) {
-      console.log("Attempting OpenAI fallback...");
+      console.log("Attempting OpenAI fallback (DALL-E 3)...");
       try {
         const fullPrompt = `Storybook illustration style: ${stylePrompt}. Scene: ${text}. Context: ${context || ''}. NO TEXT in image. High quality, beautiful art.`;
         
@@ -164,18 +138,20 @@ CURRENT SCENE: ${text}`;
         const base64 = response.data[0].b64_json;
         if (base64) {
           const fallbackBlob = await base64ToBlob(base64, "image/png");
+          console.log("OpenAI image generated successfully.");
           return await processAndCacheImage(fallbackBlob, hash, text, 'openai');
         }
       } catch (oaError: any) {
-        console.error("OpenAI Fallback failed:", oaError);
+        console.error("OpenAI Fallback failed:", oaError.message || oaError);
         const isOpenAIQuota = oaError?.message?.includes('429') || oaError?.message?.includes('quota') || oaError?.message?.includes('insufficient_quota');
         
         if (isGeminiQuota || isOpenAIQuota) {
            throw new Error("QUOTA_EXCEEDED");
         }
       }
-    } else if (isGeminiQuota) {
-      throw new Error("QUOTA_EXCEEDED");
+    } else {
+      console.warn("No OpenAI API key found (VITE_OPENAI_API)");
+      if (isGeminiQuota) throw new Error("QUOTA_EXCEEDED");
     }
 
     console.log("Using placeholder as final fallback");
