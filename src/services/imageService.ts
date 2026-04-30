@@ -31,15 +31,27 @@ async function base64ToBlob(base64: string, mimeType: string): Promise<Blob> {
 
 async function processAndCacheImage(rawBlob: Blob, hash: string, prompt: string, type: string): Promise<string> {
   // 1. Process Image
-  const compressedBlob = await compressImage(rawBlob, 0.7, 1024);
+  const compressedBlob = await compressImage(rawBlob, 0.6, 1024); // Lower quality slightly to ensure it fits in Firestore if storage fails
   
   // 2. Generate path based on content hash (deduplication)
   const imageContentHash = await generateImageHash(compressedBlob);
   const userId = auth.currentUser?.uid || 'anonymous';
   const storagePath = `generated/${imageContentHash}.jpg`;
 
-  // 3. Upload to Firebase Storage
-  const imageUrl = await uploadImage(compressedBlob, storagePath);
+  let imageUrl: string;
+  try {
+    // 3. Upload to Firebase Storage
+    imageUrl = await uploadImage(compressedBlob, storagePath);
+  } catch (error) {
+    console.warn("Storage upload failed (possibly CORS). Using base64 fallback.", error);
+    // FALLBACK: Use Data URL (base64)
+    imageUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(compressedBlob);
+    });
+  }
 
   // 4. Cache the result in Firestore
   try {
