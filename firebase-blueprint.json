@@ -1,0 +1,74 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "nickname": { "type": "string" },
+        "roomIds": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["uid", "nickname", "roomIds"]
+    },
+    "Room": {
+      "title": "Room",
+      "description": "Storytelling room",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "members": { "type": "array", "items": { "type": "string" } },
+        "maxMembers": { "type": "number" },
+        "dailyTime": { "type": "string", "description": "Fixed time in HH:mm format" },
+        "lastActiveDate": { "type": "string", "description": "YYYY-MM-DD" }
+      },
+      "required": ["id", "name", "ownerId", "members", "maxMembers", "dailyTime"]
+    },
+    "Scene": {
+      "title": "Scene",
+      "description": "A single scene in a storybook",
+      "type": "object",
+      "properties": {
+        "roomId": { "type": "string" },
+        "date": { "type": "string", "description": "YYYY-MM-DD" },
+        "index": { "type": "number", "description": "0-9" },
+        "text": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["roomId", "date", "index", "text", "createdBy", "createdAt"]
+    },
+    "ImageCache": {
+      "title": "Image Cache",
+      "description": "Cached AI generated images",
+      "type": "object",
+      "properties": {
+        "hash": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "prompt": { "type": "string" }
+      },
+      "required": ["hash", "imageUrl", "prompt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/rooms/{roomId}": {
+      "schema": "Room",
+      "description": "Storytelling rooms"
+    },
+    "/rooms/{roomId}/scenes/{sceneId}": {
+      "schema": "Scene",
+      "description": "Scenes within a room"
+    },
+    "/image_cache/{hash}": {
+      "schema": "ImageCache",
+      "description": "Global image cache"
+    }
+  }
+}
