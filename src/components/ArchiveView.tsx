@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, auth } from '../lib/firebase';
 import { Scene } from '../types';
 import { ArrowLeft, Calendar as CalendarIcon, BookOpen } from 'lucide-react';
 import { format, subDays } from 'date-fns';
@@ -18,7 +18,11 @@ export function ArchiveView({ roomId, onBack }: { roomId: string, onBack: () => 
       // Fetch scenes from the last 30 days
       const last30Days = Array.from({ length: 30 }).map((_, i) => format(subDays(new Date(), i), 'yyyy-MM-dd'));
       
-      const q = query(scenesRef, orderBy("createdAt", "desc"));
+      const q = query(
+        scenesRef, 
+        where("members", "array-contains", auth.currentUser?.uid),
+        orderBy("createdAt", "desc")
+      );
       const snapshot = await getDocs(q);
       const allScenes = snapshot.docs.map(d => d.data() as Scene);
       
@@ -73,8 +77,8 @@ export function ArchiveView({ roomId, onBack }: { roomId: string, onBack: () => 
               <div className="flex-1">
                 <p className="text-lg font-black text-slate-900">{format(new Date(group.date), 'PPPP')}</p>
                 <div className="flex items-center gap-2 mt-1">
-                   <BookOpen className="w-4 h-4 text-teal-600" />
-                   <p className="text-xs font-black text-teal-600 uppercase tracking-widest">{group.scenes.length} SCENES</p>
+                   <BookOpen className="w-4 h-4 text-brand-key" />
+                   <p className="text-xs font-black text-brand-key uppercase tracking-widest">{group.scenes.length} SCENES</p>
                 </div>
               </div>
             </motion.button>

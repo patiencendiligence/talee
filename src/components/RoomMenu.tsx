@@ -56,9 +56,9 @@ export function RoomMenu({
           >
             <div className="space-y-1">
               <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Room Code</p>
-              <p className="font-mono font-bold text-teal-600">{room.id.slice(0, 8)}...</p>
+              <p className="font-mono font-bold text-brand-key">{room.id.slice(0, 8)}...</p>
             </div>
-            <div className="bg-teal-500 text-white px-4 py-2 rounded-xl text-xs font-black shadow-lg">
+            <div className="bg-brand-key text-white px-4 py-2 rounded-xl text-xs font-black shadow-lg">
               {copied ? "COPIED!" : "INVITE"}
             </div>
           </button>

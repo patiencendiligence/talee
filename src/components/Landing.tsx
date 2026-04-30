@@ -52,7 +52,7 @@ export function Landing({ onLogin }: { onLogin: () => Promise<void> }) {
             referrerPolicy="no-referrer"
           />
           <div className="absolute -top-4 -right-4 w-14 h-14 glass-light rounded-full flex items-center justify-center shadow-2xl z-20">
-            <Sparkles className="w-7 h-7 text-teal-500" />
+            <Sparkles className="w-7 h-7 text-brand-key" />
           </div>
         </div>
       </motion.div>

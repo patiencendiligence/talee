@@ -25,6 +25,7 @@ export interface Scene {
   isGenerating?: boolean;
   createdBy: string;
   createdAt: any; // ServerTimestamp
+  members?: string[]; // Denormalized for security rules performance
 }
 
 export interface ImageCache {

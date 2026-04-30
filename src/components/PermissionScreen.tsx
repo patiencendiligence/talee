@@ -37,10 +37,10 @@ export function PermissionScreen({ onComplete }: { onComplete: () => void }) {
         <button
           onClick={requestMic}
           className={`flex items-center gap-4 p-6 rounded-[2rem] transition-all ${
-            micGranted ? "bg-teal-500 text-white" : "glass hover:bg-white/20"
+            micGranted ? "bg-brand-key text-white" : "glass hover:bg-white/20"
           }`}
         >
-          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${micGranted ? "bg-white/20" : "bg-teal-500/20"}`}>
+          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${micGranted ? "bg-white/20" : "bg-brand-key/20"}`}>
             <Mic className="w-6 h-6" />
           </div>
           <div className="text-left flex-1">
@@ -52,10 +52,10 @@ export function PermissionScreen({ onComplete }: { onComplete: () => void }) {
         <button
           onClick={requestNotif}
           className={`flex items-center gap-4 p-6 rounded-[2rem] transition-all ${
-            notifGranted ? "bg-teal-500 text-white" : "glass hover:bg-white/20"
+            notifGranted ? "bg-brand-key text-white" : "glass hover:bg-white/20"
           }`}
         >
-          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${notifGranted ? "bg-white/20" : "bg-teal-500/20"}`}>
+          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${notifGranted ? "bg-white/20" : "bg-brand-key/20"}`}>
             <Bell className="w-6 h-6" />
           </div>
           <div className="text-left flex-1">
@@ -68,7 +68,7 @@ export function PermissionScreen({ onComplete }: { onComplete: () => void }) {
       <button
         onClick={onComplete}
         disabled={!micGranted}
-        className="w-full max-w-sm py-6 bg-white text-teal-900 rounded-[2rem] font-black text-xl shadow-2xl disabled:opacity-30 active:scale-95 transition-all"
+        className="w-full max-w-sm py-6 bg-white text-slate-900 rounded-[2rem] font-black text-xl shadow-2xl disabled:opacity-30 active:scale-95 transition-all"
       >
         입장하기
       </button>

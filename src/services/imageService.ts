@@ -85,10 +85,15 @@ CURRENT SCENE: ${text}`;
       }
     });
 
+    console.log("Gemini response received. Candidates:", response.candidates?.length);
+
     let rawImageUrl = '';
     // The response may contain both image and text parts
     if (response.candidates && response.candidates[0]?.content?.parts) {
-      for (const part of response.candidates[0].content.parts) {
+      const parts = response.candidates[0].content.parts;
+      console.log("Parts types:", parts.map(p => Object.keys(p)));
+      
+      for (const part of parts) {
         if (part.inlineData) {
           rawImageUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
           break;
@@ -97,7 +102,11 @@ CURRENT SCENE: ${text}`;
     }
 
     if (!rawImageUrl) {
-      throw new Error("No image part in Gemini response");
+      const finishReason = response.candidates?.[0]?.finishReason;
+      const textResponse = response.text;
+      console.warn("No image in Gemini response. Finish reason:", finishReason);
+      if (textResponse) console.warn("Model response text:", textResponse);
+      throw new Error(textResponse || "No image part in Gemini response");
     }
 
     // Compress before storing to avoid 1MB limit

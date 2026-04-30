@@ -91,12 +91,11 @@ export async function addScene(roomId: string, userId: string, text: string, ind
   const sceneRef = doc(db, "rooms", roomId, "scenes", sceneId);
 
   try {
-    // 1. Create a quick placeholder image first
-    const placeholderUrl = generatePlaceholderImage(text);
+    // 1. Create a placeholder image
+    const placeholderUrl = generatePlaceholderImage(text, "스케치북 사오는 중..");
 
-    // 2. Perform transaction with placeholder and isGenerating: true
-    let styleIndex: number;
-    await runTransaction(db, async (transaction) => {
+    // 2. Perform transaction
+    const result = await runTransaction(db, async (transaction) => {
       // ALL READS AT THE TOP
       const roomSnap = await transaction.get(roomRef);
       const sceneSnap = await transaction.get(sceneRef);
@@ -114,7 +113,6 @@ export async function addScene(roomId: string, userId: string, text: string, ind
       if (needsStyleUpdate) {
         todayStyle = Math.floor(Math.random() * STORY_STYLES.length);
       }
-      styleIndex = todayStyle!;
 
       const [targetH, targetM] = roomData.dailyTime.split(':').map(Number);
       const now = new Date();
@@ -134,9 +132,10 @@ export async function addScene(roomId: string, userId: string, text: string, ind
         index,
         text,
         imageUrl: placeholderUrl,
-        isGenerating: true, // Mark as generating
+        isGenerating: true,
         createdBy: userId,
         createdAt: serverTimestamp(),
+        members: roomData.members, // DENORMALIZATION for security rules
       };
 
       // ALL WRITES AT THE BOTTOM
@@ -145,10 +144,13 @@ export async function addScene(roomId: string, userId: string, text: string, ind
         transaction.update(roomRef, { dailyStyles: newDailyStyles });
       }
       transaction.set(sceneRef, newScene);
+      
+      return { styleIndex: todayStyle! };
     });
 
+    const styleIndex = result.styleIndex;
+
     // 3. Start AI image generation in background after transaction succeeds
-    // We fetch previous scenes to build context
     try {
       const scenesRef = collection(db, "rooms", roomId, "scenes");
       const q = query(scenesRef, where("date", "==", dateStr), orderBy("index", "asc"));

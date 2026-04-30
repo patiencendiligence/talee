@@ -90,7 +90,7 @@ export function Dashboard({ profile, onEnterRoom }: { profile: UserProfile | nul
             <p className="text-sm font-bold text-slate-500">함께 만드는 마법같은 세계</p>
          </div>
          <div className="w-12 h-12 glass shadow-xl rounded-2xl flex items-center justify-center">
-            <span className="font-black text-teal-400">{rooms.length}</span>
+            <span className="font-black text-brand-key">{rooms.length}</span>
          </div>
       </div>
 
@@ -99,7 +99,7 @@ export function Dashboard({ profile, onEnterRoom }: { profile: UserProfile | nul
           onClick={() => setShowCreate(true)}
           className="glass aspect-[4/3] rounded-[2rem] flex flex-col items-center justify-center gap-3 hover:bg-white/20 transition-all border-dashed border-white/20"
         >
-          <div className="w-14 h-14 bg-teal-500 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-teal-500/20">
+          <div className="w-14 h-14 bg-brand-key rounded-2xl flex items-center justify-center text-white shadow-xl shadow-brand-key/20">
             <Plus className="w-8 h-8" />
           </div>
           <span className="font-bold text-slate-700">방 만들기</span>
@@ -150,7 +150,7 @@ export function Dashboard({ profile, onEnterRoom }: { profile: UserProfile | nul
                           type="text" 
                           value={newRoomName} 
                           onChange={e => setNewRoomName(e.target.value)}
-                          className="w-full glass-dark p-5 rounded-[1.5rem] border-transparent focus:bg-white/10 focus:ring-2 focus:ring-teal-500/50 outline-none transition-all placeholder:text-slate-400/50 font-bold text-slate-900"
+                          className="w-full glass-dark p-5 rounded-[1.5rem] border-transparent focus:bg-white/10 focus:ring-2 focus:ring-brand-key/50 outline-none transition-all placeholder:text-slate-400/50 font-bold text-slate-900"
                           placeholder="어떤 이야기를 만드나요?"
                         />
                       </div>
@@ -160,7 +160,7 @@ export function Dashboard({ profile, onEnterRoom }: { profile: UserProfile | nul
                           type="time" 
                           value={newRoomTime} 
                           onChange={e => setNewRoomTime(e.target.value)}
-                          className="w-full glass-dark p-5 rounded-[1.5rem] border-transparent focus:bg-white/10 focus:ring-2 focus:ring-teal-500/50 outline-none transition-all font-bold text-slate-900"
+                          className="w-full glass-dark p-5 rounded-[1.5rem] border-transparent focus:bg-white/10 focus:ring-2 focus:ring-brand-key/50 outline-none transition-all font-bold text-slate-900"
                         />
                       </div>
                       <div className="space-y-2">
@@ -171,20 +171,20 @@ export function Dashboard({ profile, onEnterRoom }: { profile: UserProfile | nul
                           max={4}
                           value={maxMembers} 
                           onChange={e => setMaxMembers(parseInt(e.target.value))}
-                          className="w-full glass-dark p-5 rounded-[1.5rem] border-transparent focus:bg-white/10 focus:ring-2 focus:ring-teal-500/50 outline-none transition-all font-bold text-slate-900"
+                          className="w-full glass-dark p-5 rounded-[1.5rem] border-transparent focus:bg-white/10 focus:ring-2 focus:ring-brand-key/50 outline-none transition-all font-bold text-slate-900"
                         />
                       </div>
                     </>
                   ) : (
                     <div className="space-y-2">
-                      <label className="text-xs font-black text-teal-100/50 uppercase tracking-widest ml-4">초대 코드</label>
+                      <label className="text-xs font-black text-brand-key uppercase tracking-widest ml-4">초대 코드</label>
                       <div className="relative">
-                        <Hash className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-teal-400" />
+                        <Hash className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-key" />
                         <input 
                           type="text" 
                           value={joinCode} 
                           onChange={e => setJoinCode(e.target.value)}
-                          className="w-full glass-dark p-5 pl-14 rounded-[1.5rem] border-transparent focus:bg-white/10 focus:ring-2 focus:ring-teal-500/50 outline-none transition-all placeholder:text-white/20 font-bold uppercase"
+                          className="w-full glass-dark p-5 pl-14 rounded-[1.5rem] border-transparent focus:bg-white/10 focus:ring-2 focus:ring-brand-key/50 outline-none transition-all placeholder:text-white/20 font-bold uppercase"
                           placeholder="코드 입력"
                         />
                       </div>
@@ -194,7 +194,7 @@ export function Dashboard({ profile, onEnterRoom }: { profile: UserProfile | nul
                   <button 
                     type="submit" 
                     disabled={loading}
-                    className="w-full bg-teal-500 py-6 rounded-[2rem] font-black text-xl shadow-xl shadow-teal-500/10 active:scale-95 transition-all text-white"
+                    className="w-full bg-brand-key py-6 rounded-[2rem] font-black text-xl shadow-xl shadow-brand-key/10 active:scale-95 transition-all text-white"
                   >
                     {loading ? "기다려주세요..." : (showCreate ? "시작하기" : "입장하기")}
                   </button>
@@ -221,19 +221,19 @@ export function Dashboard({ profile, onEnterRoom }: { profile: UserProfile | nul
                 onClick={() => onEnterRoom(room.id)}
                 className="flex items-center justify-between glass card-child text-left group overflow-hidden relative"
               >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/5 rounded-full blur-3xl -mr-16 -mt-16" />
+                <div className="absolute top-0 right-0 w-32 h-32 bg-brand-key/5 rounded-full blur-3xl -mr-16 -mt-16" />
                 <div className="space-y-3 relative">
-                  <h4 className="font-black text-2xl text-slate-900 group-hover:text-teal-600 transition-colors tracking-tight">{room.name}</h4>
+                  <h4 className="font-black text-2xl text-slate-900 group-hover:text-brand-key transition-colors tracking-tight">{room.name}</h4>
                   <div className="flex items-center gap-3 text-xs font-black">
                     <span className="flex items-center gap-1.5 glass-dark px-3 py-1.5 rounded-xl uppercase text-slate-600">
-                      <Calendar className="w-3.5 h-3.5 text-teal-600" /> {room.dailyTime}
+                      <Calendar className="w-3.5 h-3.5 text-brand-key" /> {room.dailyTime}
                     </span>
                     <span className="flex items-center gap-1.5 glass-dark px-3 py-1.5 rounded-xl uppercase text-slate-600">
                       <Users className="w-3.5 h-3.5 text-blue-600" /> {room.members.length}/4
                     </span>
                   </div>
                 </div>
-                <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white group-hover:bg-teal-500/20 transition-all border-white/5 relative">
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white group-hover:bg-brand-key/20 transition-all border-white/5 relative">
                   <DoorOpen className="w-6 h-6" />
                 </div>
               </motion.button>

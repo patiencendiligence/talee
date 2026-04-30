@@ -62,8 +62,8 @@ export default function App() {
   };
 
   if (loading) return (
-    <div className="flex items-center justify-center h-screen font-sans bg-[#eaece5] text-teal-600">
-      <div className="animate-pulse font-black text-2xl tracking-tighter text-teal-600">TALEE</div>
+    <div className="flex items-center justify-center h-screen font-sans bg-[#eaece5] text-brand-key">
+      <div className="animate-pulse font-black text-2xl tracking-tighter text-brand-key">TALEE</div>
     </div>
   );
 
@@ -72,7 +72,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen text-teal-50 font-sans selection:bg-teal-500/30">
+    <div className="min-h-screen text-slate-50 font-sans selection:bg-brand-key/30">
       <Navbar user={user} onLogoClick={handleLogoClick} />
       
       <main className="max-w-2xl mx-auto px-4 py-8">
@@ -95,7 +95,7 @@ export default function App() {
       </main>
 
       {/* Decorative Blur Blobs */}
-      <div className="fixed top-0 left-0 w-96 h-96 bg-teal-500/10 rounded-full blur-[120px] -translate-x-1/2 -translate-y-1/2 pointer-events-none z-[-1]" />
+      <div className="fixed top-0 left-0 w-96 h-96 bg-brand-key/10 rounded-full blur-[120px] -translate-x-1/2 -translate-y-1/2 pointer-events-none z-[-1]" />
       <div className="fixed bottom-0 right-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-[120px] translate-x-1/2 translate-y-1/2 pointer-events-none z-[-1]" />
     </div>
   );

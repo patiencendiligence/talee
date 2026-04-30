@@ -5,7 +5,13 @@
   --color-brand-primary: #e0e0e0;
   --color-brand-secondary: #d4d8ea;
   --color-brand-soft: #f0f6fd;
-  --color-brand-key: ##24dde8;
+  --color-brand-key: #24dde8;
+}
+
+@layer base {
+  .text-brand-key { color: var(--color-brand-key); }
+  .bg-brand-key { background-color: var(--color-brand-key); }
+  .border-brand-key { border-color: var(--color-brand-key); }
 }
 
 @layer base {

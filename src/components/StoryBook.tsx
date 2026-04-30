@@ -59,14 +59,14 @@ export function StoryBook({ scenes, onClose }: { scenes: Scene[], onClose: () =>
         <button 
           onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
           disabled={currentIndex === 0}
-          className="flex-1 h-20 glass rounded-[2.5rem] flex items-center justify-center text-teal-600 disabled:opacity-10 shadow-lg active:scale-95 transition-all"
+          className="flex-1 h-20 glass rounded-[2.5rem] flex items-center justify-center text-brand-key disabled:opacity-10 shadow-lg active:scale-95 transition-all"
         >
           <ChevronLeft className="w-10 h-10" />
         </button>
         <button 
           onClick={() => setCurrentIndex(prev => Math.min(scenes.length - 1, prev + 1))}
           disabled={currentIndex === scenes.length - 1}
-          className="flex-1 h-20 bg-teal-500 rounded-[2.5rem] flex items-center justify-center text-white disabled:opacity-20 shadow-xl shadow-teal-500/20 active:scale-95 transition-all"
+          className="flex-1 h-20 bg-brand-key rounded-[2.5rem] flex items-center justify-center text-white disabled:opacity-20 shadow-xl shadow-brand-key/20 active:scale-95 transition-all"
         >
           <ChevronRight className="w-10 h-10" />
         </button>

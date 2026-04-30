@@ -33,6 +33,7 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
     const q = query(
       collection(db, "rooms", roomId, "scenes"),
       where("date", "==", today),
+      where("members", "array-contains", auth.currentUser?.uid),
       orderBy("index", "asc")
     );
     const unsubScenes = onSnapshot(q, (sn) => {
@@ -98,7 +99,15 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
       setActiveSlot(null);
       setNewText('');
     } catch (err: any) {
-      setError(err.message || '저장 실패');
+      if (err.message && (err.message.includes("transactions require all reads") || err.message.includes("permission"))) {
+        setError("앗! 스케치북을 다 썼어요. 금방 다시 사올게요. 다시 시도해주세요.");
+        setTimeout(() => {
+          setActiveSlot(null);
+          setError('');
+        }, 3000);
+      } else {
+        setError(err.message || '저장 실패');
+      }
     } finally {
       setLoading(false);
     }
@@ -115,7 +124,7 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
         <div className="flex-1 text-slate-900">
           <h2 className="text-2xl font-black tracking-tight">{room.name}</h2>
           <div className="flex items-center gap-2 font-bold text-xs">
-             <span className={isActive ? "text-teal-600" : "text-slate-300"}>
+             <span className={isActive ? "text-brand-key" : "text-slate-300"}>
                {isActive ? "✨ OPEN" : "🌙 CLOSED"}
              </span>
              <span className="text-slate-300 uppercase tracking-widest">{room.dailyTime}</span>
@@ -132,13 +141,13 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
           onClick={() => setShowStory(true)}
           className="w-full glass py-8 rounded-[2.5rem] flex items-center justify-center gap-4 border-2 border-white/20 shadow-2xl relative group overflow-hidden"
         >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/10 rounded-full blur-3xl -mr-16 -mt-16" />
-          <div className="w-16 h-16 bg-teal-500 rounded-3xl flex items-center justify-center text-white shadow-xl shadow-teal-500/20 group-hover:scale-110 transition-transform">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-brand-key/10 rounded-full blur-3xl -mr-16 -mt-16" />
+          <div className="w-16 h-16 bg-brand-key rounded-3xl flex items-center justify-center text-white shadow-xl shadow-brand-key/20 group-hover:scale-110 transition-transform">
             <BookOpen className="w-8 h-8" />
           </div>
           <div className="text-left">
             <p className="text-2xl font-black tracking-tight text-slate-800">오늘의 꼬리물기 동화</p>
-            <p className="text-xs font-black text-teal-600 uppercase tracking-widest">{scenes.length} / 7 SCENES</p>
+            <p className="text-xs font-black text-brand-key uppercase tracking-widest">{scenes.length} / 7 SCENES</p>
           </div>
         </motion.button>
       )}
@@ -159,7 +168,7 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
                <button
                 onClick={() => isActive && !scene && setActiveSlot(i)}
                 className={`w-full h-full glass rounded-[2.5rem] overflow-hidden relative group transition-all ${
-                  isActive && isNext ? "border-teal-500/40 border-2 shadow-lg shadow-teal-500/10" : ""
+                  isActive && isNext ? "border-brand-key/40 border-2 shadow-lg shadow-brand-key/10" : ""
                 } ${!isActive && !scene ? "opacity-30 grayscale" : ""}`}
               >
                 {scene ? (
@@ -172,8 +181,8 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
                     />
                     {scene.isGenerating && (
                       <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-                        <div className="w-6 h-6 border-2 border-teal-500/30 border-t-teal-500 rounded-full animate-spin" />
-                        <span className="text-[8px] font-black text-teal-600 animate-pulse font-sans">그리는 중...</span>
+                        <div className="w-6 h-6 border-2 border-brand-key/30 border-t-brand-key rounded-full animate-spin" />
+                        <span className="text-[8px] font-black text-brand-key animate-pulse font-sans">그리는 중...</span>
                       </div>
                     )}
                     <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black via-black/40 to-transparent">
@@ -182,10 +191,10 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
                   </>
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center gap-2">
-                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${isActive && isNext ? "bg-teal-500/20 text-teal-400 animate-pulse" : "bg-white/5 text-white/10"}`}>
+                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${isActive && isNext ? "bg-brand-key/20 text-brand-key animate-pulse" : "bg-white/5 text-white/10"}`}>
                        <Plus className="w-6 h-6" />
                     </div>
-                    <span className={`text-[10px] font-black uppercase tracking-widest ${isActive && isNext ? "text-teal-400" : "text-white/10"}`}>
+                    <span className={`text-[10px] font-black uppercase tracking-widest ${isActive && isNext ? "text-brand-key" : "text-white/10"}`}>
                        {i === 0 ? "START" : "NEXT"}
                     </span>
                   </div>
@@ -208,7 +217,7 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
               exit={{ y: "100%", opacity: 0 }}
               className="glass w-full max-w-md rounded-[3rem] p-8 space-y-8 relative overflow-hidden"
             >
-              <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/10 rounded-full blur-3xl -mr-16 -mt-16" />
+              <div className="absolute top-0 right-0 w-32 h-32 bg-brand-key/10 rounded-full blur-3xl -mr-16 -mt-16" />
               
               <div className="flex items-center justify-between relative">
                 <div className="space-y-1">
@@ -226,7 +235,7 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
                       value={newText} 
                       onChange={e => setNewText(e.target.value)}
                       placeholder="어떤 일이 일어날까요? 짧고 재미있게 적어주세요!"
-                      className="w-full h-44 glass-dark p-6 rounded-[2.5rem] border-transparent focus:bg-white/10 focus:ring-4 focus:ring-teal-500/20 outline-none transition-all font-bold text-xl placeholder:text-slate-400/50 resize-none whitespace-pre-wrap text-slate-900"
+                      className="w-full h-44 glass-dark p-6 rounded-[2.5rem] border-transparent focus:bg-white/10 focus:ring-4 focus:ring-brand-key/20 outline-none transition-all font-bold text-xl placeholder:text-slate-400/50 resize-none whitespace-pre-wrap text-slate-900"
                     />
                     <div className="absolute bottom-6 right-6 flex gap-2">
                        {newText && (
@@ -237,7 +246,7 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
                        <button 
                         onClick={handleVoiceInput}
                         className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-2xl transition-all ${
-                          isRecording ? "bg-red-500 text-white animate-pulse" : "glass text-teal-400"
+                          isRecording ? "bg-red-500 text-white animate-pulse" : "glass text-brand-key"
                         }`}
                        >
                         <Mic className="w-7 h-7" />
@@ -249,7 +258,7 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
 
                  {loading ? (
                    <div className="flex flex-col items-center justify-center py-8 space-y-4">
-                     <div className="w-16 h-16 border-4 border-teal-500/20 border-t-teal-500 rounded-full animate-spin" />
+                     <div className="w-16 h-16 border-4 border-brand-key/20 border-t-brand-key rounded-full animate-spin" />
                      <div className="text-center">
                         <p className="font-black text-slate-900 text-xl">그림으로 그리는 중!</p>
                         <p className="text-slate-400 font-bold">잠시만 기다려주세요...</p>
@@ -259,7 +268,7 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
                    <button 
                     onClick={handleSubmit}
                     disabled={loading || !newText}
-                    className="w-full py-6 bg-teal-500 text-white rounded-[2rem] font-black text-xl shadow-xl shadow-teal-500/20 disabled:opacity-20 transition-all active:scale-95"
+                    className="w-full py-6 bg-brand-key text-white rounded-[2rem] font-black text-xl shadow-xl shadow-brand-key/20 disabled:opacity-20 transition-all active:scale-95"
                    >
                      이야기 저장
                    </button>

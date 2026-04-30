@@ -57,10 +57,14 @@ service cloud.firestore {
       allow delete: if isAdmin() || isOwner(resource.data.ownerId);
 
       match /scenes/{sceneId} {
-        allow read: if isSignedIn() && (
-          request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.members || 
-          isAdmin()
-        );
+        function isRoomMember() {
+          return isSignedIn() && (
+            (request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.members) ||
+            (resource != null && resource.data.keys().hasAll(['members']) && request.auth.uid in resource.data.members)
+          );
+        }
+
+        allow read: if isSignedIn() && (isRoomMember() || isAdmin());
         
         allow create: if isSignedIn() && 
                         (request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.members) && 
@@ -68,14 +72,14 @@ service cloud.firestore {
                         request.resource.data.index >= 0 && 
                         request.resource.data.index < 7 &&
                         request.resource.data.createdBy == request.auth.uid &&
-                        request.resource.data.keys().hasAll(['roomId', 'date', 'index', 'text', 'imageUrl', 'createdBy', 'createdAt']);
+                        request.resource.data.keys().hasAll(['roomId', 'date', 'index', 'text', 'imageUrl', 'createdBy', 'createdAt', 'isGenerating', 'members']);
 
         // Only allow updating imageUrl and isGenerating (for AI completion)
         // No manual deletion allowed by users after creation (except maybe admin)
         allow update: if isSignedIn() && (
-                         ((request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.members) && 
-                          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['imageUrl', 'isGenerating'])) || 
-                         isAdmin()
+                         isAdmin() ||
+                         (isRoomMember() && 
+                          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['imageUrl', 'isGenerating']))
                        );
                          
         allow delete: if isAdmin();
