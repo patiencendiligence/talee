@@ -1,12 +1,18 @@
 import { Scene } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { useState } from 'react';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, X, Download } from 'lucide-react';
 
-export function StoryBook({ scenes, onClose }: { scenes: Scene[], onClose: () => void }) {
-  const [currentIndex, setCurrentIndex] = useState(0);
+export function StoryBook({ scenes, startIndex = 0, onClose }: { scenes: Scene[], startIndex?: number, onClose: () => void }) {
+  const [currentIndex, setCurrentIndex] = useState(startIndex);
+
+  useEffect(() => {
+    setCurrentIndex(startIndex);
+  }, [startIndex]);
 
   if (scenes.length === 0) return null;
+
+  const currentScene = scenes[currentIndex];
 
   return (
     <div className="fixed inset-0 bg-[#eaece5] z-[200] flex flex-col">
@@ -28,18 +34,26 @@ export function StoryBook({ scenes, onClose }: { scenes: Scene[], onClose: () =>
             exit={{ opacity: 0, scale: 1.1, rotate: 2 }}
             className="w-full max-w-sm flex flex-col items-center gap-10"
           >
-            <div className="w-full aspect-[4/5] rounded-[3rem] overflow-hidden shadow-[0_40px_80px_rgba(0,0,0,0.4)] bg-white/5 p-4 border border-white/10 relative">
+            <div className="w-full aspect-[4/5] rounded-[3rem] overflow-hidden shadow-[0_40px_80px_rgba(0,0,0,0.4)] bg-white/5 p-4 border border-white/10 relative group">
               <img 
-                src={scenes[currentIndex].imageUrl} 
-                className={`w-full h-full object-cover rounded-[2.5rem] shadow-2xl transition-all duration-700 ${scenes[currentIndex].isGenerating ? 'blur-md opacity-50 scale-105' : 'blur-0 opacity-100'}`} 
+                src={currentScene.imageUrl} 
+                className={`w-full h-full object-cover rounded-[2.5rem] shadow-2xl transition-all duration-700 ${currentScene.isGenerating ? 'blur-md opacity-50 scale-105' : 'blur-0 opacity-100'}`} 
                 alt="Scene" 
                 referrerPolicy="no-referrer"
               />
-              {scenes[currentIndex].isGenerating && (
+              {currentScene.isGenerating && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/10 rounded-[2.5rem]">
                   <div className="w-10 h-10 border-4 border-white/20 border-t-white rounded-full animate-spin" />
                   <span className="text-sm font-black text-white animate-pulse">이미지를 그리는 중...</span>
                 </div>
+              )}
+              {!currentScene.isGenerating && (
+                <button 
+                  onClick={() => window.open(currentScene.imageUrl, '_blank')}
+                  className="absolute top-8 right-8 w-12 h-12 glass shadow-xl rounded-2xl flex items-center justify-center text-slate-900 opacity-0 group-hover:opacity-100 transition-all active:scale-95 px-0 py-0 border-none"
+                >
+                  <Download className="w-6 h-6" />
+                </button>
               )}
               <div className="absolute top-8 left-8 w-10 h-10 glass-light rounded-full flex items-center justify-center font-black text-slate-900 text-xs">
                 {currentIndex + 1}
@@ -48,7 +62,7 @@ export function StoryBook({ scenes, onClose }: { scenes: Scene[], onClose: () =>
             
             <div className="space-y-4">
               <p className="text-2xl sm:text-3xl text-white font-black text-center leading-relaxed tracking-tight drop-shadow-xl">
-                "{scenes[currentIndex].text}"
+                "{currentScene.text}"
               </p>
             </div>
           </motion.div>

@@ -2,11 +2,11 @@ import { useState, useEffect, ChangeEvent, useRef } from 'react';
 import { Room, Scene } from '../types';
 import { doc, onSnapshot, collection, query, where, orderBy } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
-import { ArrowLeft, Plus, Mic, Image as ImageIcon, CheckCircle2, Clock, BookOpen, MoreVertical, X, Share2, Trash2, Download, Upload } from 'lucide-react';
+import { ArrowLeft, Plus, Mic, Image as ImageIcon, CheckCircle2, Clock, BookOpen, MoreVertical, X, Share2, Trash2, Download, Upload, RefreshCcw } from 'lucide-react';
 import { StoryBook } from './StoryBook';
 import { RoomMenu } from './RoomMenu';
 import { RoomSettings } from './RoomSettings';
-import { addScene, deleteRoom, resumeGeneration } from '../services/roomService';
+import { addScene, deleteRoom, resumeGeneration, manualRetryGeneration } from '../services/roomService';
 import { moderateText } from '../lib/utils';
 import { compressImage, uploadImage, generateImageHash } from '../utils/imageUtils';
 import { format, addHours, isWithinInterval } from 'date-fns';
@@ -18,9 +18,11 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
   const [activeSlot, setActiveSlot] = useState<number | null>(null);
   const [newText, setNewText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
+  const [countdown, setCountdown] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showStory, setShowStory] = useState(false);
+  const [storyStartIndex, setStoryStartIndex] = useState(0);
   const [showMenu, setShowMenu] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -93,15 +95,35 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
 
     const recognition = new (window as any).webkitSpeechRecognition();
     recognition.lang = 'ko-KR';
-    recognition.onstart = () => setIsRecording(true);
-    recognition.onend = () => setIsRecording(false);
+    recognition.onstart = () => {
+      setIsRecording(true);
+      setCountdown(5);
+    };
+    recognition.onend = () => {
+      setIsRecording(false);
+      setCountdown(0);
+    };
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
       setNewText(transcript);
     };
 
     recognition.start();
-    setTimeout(() => recognition.stop(), 8000);
+    
+    const timer = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          recognition.stop();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const handleRetry = (sceneId: string) => {
+    manualRetryGeneration(roomId, sceneId);
   };
 
   const handleSubmit = async (manualImageUrl?: string) => {
@@ -110,7 +132,8 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
     setError('');
     
     try {
-      const moderated = newText ? moderateText(newText) : "직접 올린 사진이에요.";
+      const truncatedText = newText.length > 200 ? newText.substring(0, 197) + "..." : newText;
+      const moderated = truncatedText ? moderateText(truncatedText) : "직접 올린 사진이에요.";
       await addScene(roomId, auth.currentUser!.uid, moderated, activeSlot, manualImageUrl);
       setActiveSlot(null);
       setNewText('');
@@ -213,8 +236,15 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
               transition={{ delay: i * 0.05 }}
               className="relative aspect-square"
             >
-               <button
-                onClick={() => isActive && !scene && setActiveSlot(i)}
+              <button
+                onClick={() => {
+                  if (scene) {
+                    setStoryStartIndex(i);
+                    setShowStory(true);
+                  } else if (isActive && isNext) {
+                    setActiveSlot(i);
+                  }
+                }}
                 className={`w-full h-full glass rounded-[2.5rem] overflow-hidden relative group transition-all ${
                   isActive && isNext ? "border-brand-key/40 border-2 shadow-lg shadow-brand-key/10" : ""
                 } ${!isActive && !scene ? "opacity-30 grayscale" : ""}`}
@@ -232,6 +262,32 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
                         <div className="w-6 h-6 border-2 border-brand-key/30 border-t-brand-key rounded-full animate-spin" />
                         <span className="text-[8px] font-black text-brand-key animate-pulse font-sans">그리는 중...</span>
                       </div>
+                    )}
+                    {!scene.isGenerating && scene.needsRetry && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/60 backdrop-blur-sm">
+                        <p className="text-[8px] font-black text-white text-center px-2 mb-1">생성 실패</p>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRetry(scene.id);
+                          }}
+                          className="px-3 py-1.5 glass-light rounded-xl font-bold text-slate-800 text-[10px] flex items-center gap-1.5 active:scale-95 transition-all"
+                        >
+                          <RefreshCcw className="w-3 h-3" />
+                          다시 생성
+                        </button>
+                      </div>
+                    )}
+                    {!scene.isGenerating && (
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.open(scene.imageUrl, '_blank');
+                        }}
+                        className="absolute top-3 right-3 w-8 h-8 rounded-full glass-dark flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Download className="w-4 h-4" />
+                      </button>
                     )}
                     <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black via-black/40 to-transparent">
                        <p className="text-[10px] font-bold text-white line-clamp-2 leading-snug">{scene.text}</p>
@@ -293,11 +349,15 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
                        )}
                        <button 
                         onClick={handleVoiceInput}
-                        className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-2xl transition-all ${
+                        className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-2xl transition-all relative ${
                           isRecording ? "bg-red-500 text-white animate-pulse" : "glass text-brand-key"
                         }`}
                        >
-                        <Mic className="w-7 h-7" />
+                        {isRecording ? (
+                          <span className="text-xl font-black">{countdown}</span>
+                        ) : (
+                          <Mic className="w-7 h-7" />
+                        )}
                        </button>
                        <label className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-2xl transition-all cursor-pointer ${
                          isUploading ? "bg-slate-100 animate-pulse" : "glass text-brand-key"
@@ -326,7 +386,7 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
                    </div>
                  ) : (
                    <button 
-                    onClick={handleSubmit}
+                    onClick={() => handleSubmit()}
                     disabled={loading || !newText}
                     className="w-full py-6 bg-brand-key text-white rounded-[2rem] font-black text-xl shadow-xl shadow-brand-key/20 disabled:opacity-20 transition-all active:scale-95"
                    >
@@ -359,7 +419,7 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
         )}
 
         {showStory && (
-          <StoryBook scenes={scenes} onClose={() => setShowStory(false)} />
+          <StoryBook scenes={scenes} startIndex={storyStartIndex} onClose={() => setShowStory(false)} />
         )}
       </AnimatePresence>
     </div>

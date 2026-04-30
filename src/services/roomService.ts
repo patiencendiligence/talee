@@ -189,11 +189,13 @@ export async function addScene(roomId: string, userId: string, text: string, ind
             console.warn("Quota exceeded, will retry later.");
             await updateDoc(sceneRef, {
               needsRetry: true
+              // isGenerating remains true for auto-retry
             });
           } else {
             console.error("AI Generation failed:", error);
             await updateDoc(sceneRef, {
-              isGenerating: false
+              isGenerating: false,
+              needsRetry: true // This will signal manual retry
             });
           }
         }
@@ -204,6 +206,22 @@ export async function addScene(roomId: string, userId: string, text: string, ind
 
     generateBackgroundImageUrl();
 
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `rooms/${roomId}/scenes/${sceneId}`);
+  }
+}
+
+export async function manualRetryGeneration(roomId: string, sceneId: string): Promise<void> {
+  const sceneRef = doc(db, "rooms", roomId, "scenes", sceneId);
+  
+  try {
+    await updateDoc(sceneRef, {
+      isGenerating: true,
+      needsRetry: false
+    });
+    
+    // Trigger the actual logic using resumeGeneration which is already designed for this
+    await resumeGeneration(roomId, sceneId);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `rooms/${roomId}/scenes/${sceneId}`);
   }
