@@ -23,6 +23,7 @@ export interface Scene {
   text: string;
   imageUrl: string;
   isGenerating?: boolean;
+  needsRetry?: boolean;
   createdBy: string;
   createdAt: any; // ServerTimestamp
   members?: string[]; // Denormalized for security rules performance

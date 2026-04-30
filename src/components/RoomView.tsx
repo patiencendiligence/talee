@@ -1,12 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, ChangeEvent, useRef } from 'react';
 import { Room, Scene } from '../types';
 import { doc, onSnapshot, collection, query, where, orderBy } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
-import { ArrowLeft, Plus, Mic, Image as ImageIcon, CheckCircle2, Clock, BookOpen, MoreVertical, X, Share2, Trash2, Download } from 'lucide-react';
+import { ArrowLeft, Plus, Mic, Image as ImageIcon, CheckCircle2, Clock, BookOpen, MoreVertical, X, Share2, Trash2, Download, Upload } from 'lucide-react';
 import { StoryBook } from './StoryBook';
 import { RoomMenu } from './RoomMenu';
-import { addScene, deleteRoom } from '../services/roomService';
+import { RoomSettings } from './RoomSettings';
+import { addScene, deleteRoom, resumeGeneration } from '../services/roomService';
 import { moderateText } from '../lib/utils';
+import { compressImage, uploadImage, generateImageHash } from '../utils/imageUtils';
 import { format, addHours, isWithinInterval } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -20,6 +22,9 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
   const [error, setError] = useState('');
   const [showStory, setShowStory] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const resumingRef = useRef<Set<string>>(new Set());
 
   const today = format(new Date(), 'yyyy-MM-dd');
 
@@ -37,7 +42,18 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
       orderBy("index", "asc")
     );
     const unsubScenes = onSnapshot(q, (sn) => {
-      setScenes(sn.docs.map(d => d.data() as Scene));
+      const data = sn.docs.map(d => d.data() as Scene);
+      setScenes(data);
+      
+      // Auto-resume generation for scenes that need retry
+      data.forEach(scene => {
+        if (scene.isGenerating && scene.needsRetry && !resumingRef.current.has(scene.id)) {
+          resumingRef.current.add(scene.id);
+          resumeGeneration(roomId, scene.id).finally(() => {
+            resumingRef.current.delete(scene.id);
+          });
+        }
+      });
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, `rooms/${roomId}/scenes`);
     });
@@ -46,7 +62,7 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
       unsubRoom();
       unsubScenes();
     };
-  }, [roomId, today]);
+  }, [roomId, today, auth.currentUser?.uid]);
 
   const checkTimeWindow = () => {
     if (!room) return false;
@@ -88,18 +104,24 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
     setTimeout(() => recognition.stop(), 8000);
   };
 
-  const handleSubmit = async () => {
-    if (!newText || activeSlot === null) return;
+  const handleSubmit = async (manualImageUrl?: string) => {
+    if ((!newText && !manualImageUrl) || activeSlot === null) return;
     setLoading(true);
     setError('');
     
     try {
-      const moderated = moderateText(newText);
-      await addScene(roomId, auth.currentUser!.uid, moderated, activeSlot);
+      const moderated = newText ? moderateText(newText) : "직접 올린 사진이에요.";
+      await addScene(roomId, auth.currentUser!.uid, moderated, activeSlot, manualImageUrl);
       setActiveSlot(null);
       setNewText('');
     } catch (err: any) {
-      if (err.message && (err.message.includes("transactions require all reads") || err.message.includes("permission"))) {
+      const isKnownError = err.message && (
+        err.message.includes("transactions require all reads") || 
+        err.message.includes("permission") ||
+        err.message.includes("이미 해당 장면이 작성되었어요.")
+      );
+
+      if (isKnownError) {
         setError("앗! 스케치북을 다 썼어요. 금방 다시 사올게요. 다시 시도해주세요.");
         setTimeout(() => {
           setActiveSlot(null);
@@ -110,6 +132,32 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || activeSlot === null) return;
+
+    setIsUploading(true);
+    setError('');
+    try {
+      // 1. Compress
+      const compressedBlob = await compressImage(file, 0.7, 1024);
+      
+      // 2. Hash for filename
+      const contentHash = await generateImageHash(compressedBlob);
+      const storagePath = `manual/${auth.currentUser!.uid}/${contentHash}.jpg`;
+      
+      // 3. Upload
+      const imageUrl = await uploadImage(compressedBlob, storagePath);
+      
+      // 4. Submit scene with pre-uploaded URL
+      await handleSubmit(imageUrl);
+    } catch (err: any) {
+      setError(err.message || "이미지 업로드 실패");
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -251,6 +299,18 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
                        >
                         <Mic className="w-7 h-7" />
                        </button>
+                       <label className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-2xl transition-all cursor-pointer ${
+                         isUploading ? "bg-slate-100 animate-pulse" : "glass text-brand-key"
+                       }`}>
+                        <Upload className="w-7 h-7" />
+                        <input 
+                          type="file" 
+                          className="hidden" 
+                          accept="image/*" 
+                          onChange={handleFileUpload}
+                          disabled={isUploading || loading}
+                        />
+                       </label>
                     </div>
                  </div>
                  
@@ -285,9 +345,16 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
             onDelete={handleDeleteRoom}
             onNavigate={(view) => {
               setShowMenu(false);
-              if (view === 'settings') alert('설정 화면 개발 중');
+              if (view === 'settings') setShowSettings(true);
               if (view === 'archive') onOpenArchive();
             }}
+          />
+        )}
+
+        {showSettings && room && (
+          <RoomSettings 
+            room={room} 
+            onClose={() => setShowSettings(false)} 
           />
         )}
 

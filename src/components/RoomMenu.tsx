@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { Calendar, BookOpen, Share2, Settings, Download, X } from 'lucide-react';
+import { Calendar, Share2, Settings, Download, X } from 'lucide-react';
 import { Room } from '../types';
+import { auth } from '../lib/firebase';
 
 export function RoomMenu({ 
   room, 
@@ -24,7 +25,7 @@ export function RoomMenu({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const isOwner = room.ownerId === (window as any).currentUserUid; 
+  const isOwner = room.ownerId === auth.currentUser?.uid; 
 
   return (
     <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
@@ -80,39 +81,44 @@ export function RoomMenu({
             </button>
           </div>
 
-          <button 
-            onClick={() => onNavigate('settings')}
-            className="w-full glass-dark p-5 rounded-[2rem] flex items-center gap-4 hover:bg-slate-900/10 transition-all border border-slate-900/5"
-          >
-            <Settings className="w-6 h-6 text-slate-400" />
-            <span className="font-bold text-slate-700">방 설정 관리</span>
-          </button>
+          {isOwner && (
+            <>
+              <button 
+                onClick={() => onNavigate('settings')}
+                className="w-full glass-dark p-5 rounded-[2rem] flex items-center gap-4 hover:bg-slate-900/10 transition-all border border-slate-900/5"
+              >
+                <Settings className="w-6 h-6 text-slate-400" />
+                <span className="font-bold text-slate-700">방 설정 관리</span>
+              </button>
 
-          {confirmDelete ? (
-            <div className="flex gap-2">
-              <button 
-                onClick={() => setConfirmDelete(false)}
-                className="flex-1 py-4 glass rounded-2xl font-bold text-slate-600"
-              >
-                취소
-              </button>
-              <button 
-                onClick={onDelete}
-                className="flex-1 py-4 bg-red-500 text-white rounded-2xl font-black shadow-lg shadow-red-500/20"
-              >
-                삭제하기
-              </button>
-            </div>
-          ) : (
-            <button 
-              onClick={() => setConfirmDelete(true)}
-              className="w-full py-4 text-red-500/60 hover:text-red-500 font-bold text-sm transition-colors"
-            >
-              이 방 삭제하기
-            </button>
+              {confirmDelete ? (
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => setConfirmDelete(false)}
+                    className="flex-1 py-4 glass rounded-2xl font-bold text-slate-600"
+                  >
+                    취소
+                  </button>
+                  <button 
+                    onClick={onDelete}
+                    className="flex-1 py-4 bg-red-500 text-white rounded-2xl font-black shadow-lg shadow-red-500/20"
+                  >
+                    삭제하기
+                  </button>
+                </div>
+              ) : (
+                <button 
+                  onClick={() => setConfirmDelete(true)}
+                  className="w-full py-4 text-red-500/60 hover:text-red-500 font-bold text-sm transition-colors"
+                >
+                  이 방 삭제하기
+                </button>
+              )}
+            </>
           )}
         </div>
       </motion.div>
     </div>
   );
 }
+

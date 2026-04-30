@@ -35,7 +35,7 @@ export function ArchiveView({ roomId, onBack }: { roomId: string, onBack: () => 
       setLoading(false);
     }
     fetchArchive();
-  }, [roomId]);
+  }, [roomId, auth.currentUser?.uid]);
 
   return (
     <div className="space-y-8 pb-32">

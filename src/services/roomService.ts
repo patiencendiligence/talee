@@ -84,15 +84,24 @@ export async function createRoom(userId: string, name: string, dailyTime: string
   return roomId;
 }
 
-export async function addScene(roomId: string, userId: string, text: string, index: number): Promise<void> {
+export async function updateRoom(roomId: string, updates: Partial<Room>): Promise<void> {
+  try {
+    const roomRef = doc(db, "rooms", roomId);
+    await updateDoc(roomRef, updates);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `rooms/${roomId}`);
+  }
+}
+
+export async function addScene(roomId: string, userId: string, text: string, index: number, manualImageUrl?: string): Promise<void> {
   const dateStr = format(new Date(), "yyyy-MM-dd");
   const sceneId = `${dateStr}_${index}`;
   const roomRef = doc(db, "rooms", roomId);
   const sceneRef = doc(db, "rooms", roomId, "scenes", sceneId);
 
   try {
-    // 1. Create a placeholder image
-    const placeholderUrl = generatePlaceholderImage(text, "스케치북 사오는 중..");
+    // 1. Create a placeholder image (if NOT manual)
+    const placeholderUrl = manualImageUrl || generatePlaceholderImage(text, "스케치북 사오는 중..");
 
     // 2. Perform transaction
     const result = await runTransaction(db, async (transaction) => {
@@ -132,7 +141,7 @@ export async function addScene(roomId: string, userId: string, text: string, ind
         index,
         text,
         imageUrl: placeholderUrl,
-        isGenerating: true,
+        isGenerating: manualImageUrl ? false : true,
         createdBy: userId,
         createdAt: serverTimestamp(),
         members: roomData.members, // DENORMALIZATION for security rules
@@ -148,51 +157,110 @@ export async function addScene(roomId: string, userId: string, text: string, ind
       return { styleIndex: todayStyle! };
     });
 
+    if (manualImageUrl) return; // Exit if manual image provided
+
     const styleIndex = result.styleIndex;
 
     // 3. Start AI image generation in background after transaction succeeds
-    try {
-      const scenesRef = collection(db, "rooms", roomId, "scenes");
-      const q = query(scenesRef, where("date", "==", dateStr), orderBy("index", "asc"));
-      const snapshot = await getDocs(q);
-      const previousScenes = snapshot.docs
-        .map(d => d.data() as Scene)
-        .filter(s => s.index < index);
-      
-      const storyContext = previousScenes.length > 0 
-        ? "Previous events: " + previousScenes.map(s => s.text).join(". ")
-        : "Initial scene of the story.";
+    const generateBackgroundImageUrl = async () => {
+      try {
+        const scenesRef = collection(db, "rooms", roomId, "scenes");
+        const q = query(scenesRef, where("date", "==", dateStr), orderBy("index", "asc"));
+        const snapshot = await getDocs(q);
+        const previousScenes = snapshot.docs
+          .map(d => d.data() as Scene)
+          .filter(s => s.index < index);
+        
+        const storyContext = previousScenes.length > 0 
+          ? "Previous events: " + previousScenes.map(s => s.text).join(". ")
+          : "Initial scene of the story.";
 
-      const stylePrompt = STORY_STYLES[styleIndex!].prompt;
-
-      getStoryImage(text, stylePrompt, storyContext).then(async (aiImageUrl) => {
+        const stylePrompt = STORY_STYLES[styleIndex!].prompt;
+        
         try {
+          const aiImageUrl = await getStoryImage(text, stylePrompt, storyContext);
           await updateDoc(sceneRef, {
             imageUrl: aiImageUrl,
-            isGenerating: false
+            isGenerating: false,
+            needsRetry: false
           });
-        } catch (e) {
-          console.error("Failed to update AI image:", e);
+        } catch (error: any) {
+          if (error.message === 'QUOTA_EXCEEDED') {
+            console.warn("Quota exceeded, will retry later.");
+            await updateDoc(sceneRef, {
+              needsRetry: true
+            });
+          } else {
+            console.error("AI Generation failed:", error);
+            await updateDoc(sceneRef, {
+              isGenerating: false
+            });
+          }
         }
-      });
-    } catch (e) {
-      console.error("Failed to build context for AI image:", e);
-      // Fallback to no-context generation
-      const stylePrompt = STORY_STYLES[styleIndex!].prompt;
-      getStoryImage(text, stylePrompt).then(async (aiImageUrl) => {
-        try {
-          await updateDoc(sceneRef, {
-            imageUrl: aiImageUrl,
-            isGenerating: false
-          });
-        } catch (err) {
-          console.error("Fallback AI fixed update failed:", err);
-        }
-      });
-    }
+      } catch (e) {
+        console.error("Background task error:", e);
+      }
+    };
+
+    generateBackgroundImageUrl();
 
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `rooms/${roomId}/scenes/${sceneId}`);
+  }
+}
+
+export async function resumeGeneration(roomId: string, sceneId: string): Promise<void> {
+  const sceneRef = doc(db, "rooms", roomId, "scenes", sceneId);
+  const roomRef = doc(db, "rooms", roomId);
+
+  try {
+    const [sceneSnap, roomSnap] = await Promise.all([
+      getDoc(sceneRef),
+      getDoc(roomRef)
+    ]);
+
+    if (!sceneSnap.exists() || !roomSnap.exists()) return;
+    
+    const sceneData = sceneSnap.data() as Scene;
+    const roomData = roomSnap.data() as Room;
+
+    if (!sceneData.isGenerating || !sceneData.needsRetry) return;
+
+    // Build context again
+    const scenesRef = collection(db, "rooms", roomId, "scenes");
+    const q = query(scenesRef, where("date", "==", sceneData.date), orderBy("index", "asc"));
+    const snapshot = await getDocs(q);
+    const previousScenes = snapshot.docs
+      .map(d => d.data() as Scene)
+      .filter(s => s.index < sceneData.index);
+    
+    const storyContext = previousScenes.length > 0 
+      ? "Previous events: " + previousScenes.map(s => s.text).join(". ")
+      : "Initial scene of the story.";
+
+    const dailyStyle = roomData.dailyStyles?.[sceneData.date] ?? 0;
+    const stylePrompt = STORY_STYLES[dailyStyle].prompt;
+
+    try {
+      const aiImageUrl = await getStoryImage(sceneData.text, stylePrompt, storyContext);
+      await updateDoc(sceneRef, {
+        imageUrl: aiImageUrl,
+        isGenerating: false,
+        needsRetry: false
+      });
+    } catch (error: any) {
+      if (error.message === 'QUOTA_EXCEEDED') {
+        // Still no quota, do nothing (will be tried next time user loads room)
+        console.log("Retry failed: still quota limited");
+      } else {
+        await updateDoc(sceneRef, {
+          isGenerating: false,
+          needsRetry: false
+        });
+      }
+    }
+  } catch (e) {
+    console.error("Failed to resume generation:", e);
   }
 }
 
