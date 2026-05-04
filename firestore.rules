@@ -17,81 +17,51 @@ service cloud.firestore {
 
     function isAdmin() {
       return isSignedIn() && (
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
-        request.auth.token.email == "patiencendiligence@gmail.com"
+        request.auth.token.email == "patiencendiligence@gmail.com" ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
       );
     }
 
     function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+       return id is string && id.size() <= 128;
+    }
+
+    function isRoomMember(roomId) {
+      let room = get(/databases/$(database)/documents/rooms/$(roomId)).data;
+      return isSignedIn() && (request.auth.uid in room.members);
     }
 
     // User Profile Rules
     match /users/{userId} {
       allow read: if isSignedIn() && (isOwner(userId) || isAdmin());
       allow create: if isOwner(userId);
-      allow update: if isOwner(userId) && 
-                      (request.resource.data.roomIds.size() <= 12 || isAdmin());
+      allow update: if isOwner(userId) || isAdmin();
     }
 
     // Room Rules
     match /rooms/{roomId} {
-      function getRoom() {
-        return get(/databases/$(database)/documents/rooms/$(roomId)).data;
-      }
-
       allow get: if isSignedIn();
-      allow list: if isSignedIn(); // Filtering is handled by query: members array-contains uid
+      allow list: if isSignedIn(); 
       
-      allow create: if isSignedIn() && 
-                      request.resource.data.members is list &&
-                      request.auth.uid in request.resource.data.members;
+      allow create: if isSignedIn();
                       
       allow update: if isSignedIn() && (
+        isAdmin() ||
         (request.auth.uid in resource.data.members) ||
-        (request.auth.uid in request.resource.data.members && 
-         request.resource.data.members.size() <= resource.data.maxMembers) ||
-        isAdmin()
+        (request.auth.uid in request.resource.data.members)
       );
 
-      allow delete: if isAdmin() || isOwner(resource.data.ownerId);
+      allow delete: if isAdmin();
 
       match /scenes/{sceneId} {
-        function isRoomMember() {
-          return isSignedIn() && (
-            (request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.members) ||
-            (resource != null && resource.data.keys().hasAll(['members']) && request.auth.uid in resource.data.members)
-          );
-        }
-
-        allow get: if isSignedIn() && (
-          (request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.members) ||
-          isAdmin()
-        );
-        
-        allow list: if isSignedIn() && (
-          (resource.data.keys().hasAll(['members']) && request.auth.uid in resource.data.members) ||
-          isAdmin()
-        );
+        allow read: if isSignedIn();
         
         allow create: if isSignedIn() && 
-                        (request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.members) && 
-                        isValidId(sceneId) &&
-                        request.resource.data.index >= 0 && 
-                        request.resource.data.index < 5 &&
-                        request.resource.data.createdBy == request.auth.uid &&
-                        request.resource.data.keys().hasAll(['roomId', 'date', 'index', 'text', 'imageUrl', 'createdBy', 'createdAt', 'isGenerating', 'members']) &&
-                        request.resource.data.members is list &&
-                        request.auth.uid in request.resource.data.members;
+                        (isAdmin() || isRoomMember(roomId)) && 
+                        isValidId(sceneId);
 
-        // Only allow updating imageUrl and isGenerating (for AI completion)
-        // No manual deletion allowed by users after creation (except maybe admin)
-        allow update: if isSignedIn() && (
-                         isAdmin() ||
-                         ((request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.members || (resource.data.keys().hasAll(['members']) && request.auth.uid in resource.data.members)) && 
-                          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['imageUrl', 'isGenerating', 'imageType', 'needsRetry']))
-                       );
-                         
+        allow update: if isSignedIn() && (isAdmin() || isRoomMember(roomId));
+                          
         allow delete: if isAdmin();
       }
     }
