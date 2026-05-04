@@ -1,9 +1,19 @@
 import { Scene } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, X, Download } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Download, RefreshCcw } from 'lucide-react';
 
-export function StoryBook({ scenes, startIndex = 0, onClose }: { scenes: Scene[], startIndex?: number, onClose: () => void }) {
+export function StoryBook({ 
+  scenes, 
+  startIndex = 0, 
+  onClose,
+  onRetry 
+}: { 
+  scenes: Scene[], 
+  startIndex?: number, 
+  onClose: () => void,
+  onRetry?: (sceneId: string) => void
+}) {
   const [currentIndex, setCurrentIndex] = useState(startIndex);
 
   useEffect(() => {
@@ -53,6 +63,21 @@ export function StoryBook({ scenes, startIndex = 0, onClose }: { scenes: Scene[]
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/10 rounded-[2.5rem]">
                   <div className="w-10 h-10 border-4 border-white/20 border-t-white rounded-full animate-spin" />
                   <span className="text-sm font-black text-white animate-pulse">이미지를 그리는 중...</span>
+                </div>
+              )}
+              {!currentScene.isGenerating && (currentScene.needsRetry || currentScene.imageType === 'placeholder') && onRetry && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/40 rounded-[2.5rem] backdrop-blur-sm">
+                   <p className="text-white font-black text-center px-4">
+                     {currentScene.imageType === 'placeholder' ? '상상력이 잠시 휴식 중이에요' : '이미지 생성에 실패했어요'}
+                   </p>
+                   <button 
+                    onClick={() => onRetry(currentScene.id)}
+                    style={{position:'absolute', top: '50px', left:'20px',zIndex:10}}
+                    className="px-6 py-3 bg-white text-brand-key rounded-2xl font-black flex items-center gap-2 shadow-2xl active:scale-95 transition-all"
+                   >
+                     <RefreshCcw className="w-5 h-5" />
+                     그림 다시 받기
+                   </button>
                 </div>
               )}
               {!currentScene.isGenerating && (

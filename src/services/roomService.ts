@@ -146,6 +146,7 @@ export async function addScene(roomId: string, userId: string, text: string, ind
         imageUrl: placeholderUrl,
         imageType: manualImageUrl ? 'manual' : 'placeholder',
         isGenerating: manualImageUrl ? false : true,
+        needsRetry: manualImageUrl ? false : true,
         createdBy: userId,
         createdAt: serverTimestamp(),
         members: roomData.members, // DENORMALIZATION for security rules
@@ -249,8 +250,8 @@ export async function resumeGeneration(roomId: string, sceneId: string): Promise
     const sceneData = sceneSnap.data() as Scene;
     const roomData = roomSnap.data() as Room;
 
-    // Allow retry if it's currently generating and marked for retry
-    if (!sceneData.isGenerating || !sceneData.needsRetry) return;
+    // Allow retry if it's currently generating
+    if (!sceneData.isGenerating) return;
 
     // Build context again
     const scenesRef = collection(db, "rooms", roomId, "scenes");

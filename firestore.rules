@@ -89,7 +89,7 @@ service cloud.firestore {
         allow update: if isSignedIn() && (
                          isAdmin() ||
                          ((request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.members || (resource.data.keys().hasAll(['members']) && request.auth.uid in resource.data.members)) && 
-                          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['imageUrl', 'isGenerating']))
+                          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['imageUrl', 'isGenerating', 'imageType', 'needsRetry']))
                        );
                          
         allow delete: if isAdmin();

@@ -47,20 +47,21 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
       const data = sn.docs.map(d => d.data() as Scene);
       setScenes(data);
       
-      // Auto-resume generation for scenes that need retry (placeholders or failed AI attempts)
+      // Auto-resume generation for scenes that are placeholders or stuck in generation
       data.forEach(scene => {
         const isPlaceholder = scene.imageType === 'placeholder';
-        const isStuck = scene.isGenerating && scene.needsRetry;
+        const isStuck = scene.isGenerating; // If it's been in this state and we haven't seen it move
         
-        if ((isPlaceholder || isStuck) && scene.needsRetry && !resumingRef.current.has(scene.id)) {
-          // Only auto-retry if some time has passed in the session
+        // Only auto-retry if it's a placeholder or explicitly needs retry, and we haven't tried in this session
+        const shouldRetry = (isPlaceholder || scene.needsRetry) && !resumingRef.current.has(scene.id);
+        
+        if (shouldRetry) {
           resumingRef.current.add(scene.id);
           
           // Small delay for auto-resuming to avoid UI stutter on mount
           setTimeout(() => {
             manualRetryGeneration(roomId, scene.id).finally(() => {
               // Wait 2 minutes before allowing another auto-trigger for this scene instance
-              // to prevent rapid-fire retries on persistent quota issues
               setTimeout(() => {
                 if (resumingRef.current.has(scene.id)) {
                   resumingRef.current.delete(scene.id);
@@ -86,7 +87,7 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
     const now = new Date();
     const start = new Date(now);
     start.setHours(h, m, 0, 0);
-    const end = addHours(start, 1);
+    const end = addHours(start, 4);
     return isWithinInterval(now, { start, end });
   };
 
@@ -284,12 +285,13 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
                           </span>
                         </div>
                       )}
-                      {scene.needsRetry && !scene.isGenerating && (
+                      {(scene.needsRetry || scene.imageType === 'placeholder') && !scene.isGenerating && (
                         <div className={`absolute inset-0 flex flex-col items-center justify-center gap-2 ${scene.imageType !== 'placeholder' ? 'bg-black/60 backdrop-blur-sm' : ''}`}>
                           <p className={`text-[8px] font-black text-center px-2 mb-1 ${scene.imageType !== 'placeholder' ? 'text-white' : 'text-brand-key bg-white/80 px-2 py-1 rounded-lg'}`}>
                             {scene.imageType === 'placeholder' ? '상상력이 휴식 중이에요' : '생성 실패'}
                           </p>
                           <button 
+                          style={{position:'absolute', top: '50px', left:'20px',zIndex:10}}
                             onClick={(e) => {
                               e.stopPropagation();
                               handleRetry(scene.id);
@@ -442,7 +444,12 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
         )}
 
         {showStory && (
-          <StoryBook scenes={scenes} startIndex={storyStartIndex} onClose={() => setShowStory(false)} />
+          <StoryBook 
+            scenes={scenes} 
+            startIndex={storyStartIndex} 
+            onClose={() => setShowStory(false)} 
+            onRetry={handleRetry}
+          />
         )}
       </AnimatePresence>
     </div>
