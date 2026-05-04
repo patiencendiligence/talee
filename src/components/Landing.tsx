@@ -39,8 +39,8 @@ export function Landing({ onLogin }: { onLogin: () => Promise<void> }) {
         </p>
       </motion.div>
       <motion.div 
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
+        initial={{ scale: 0.8 }}
+        animate={{ scale: 1 }}
         className="relative"
       >
         <div className="w-64 h-64 relative">
@@ -50,6 +50,8 @@ export function Landing({ onLogin }: { onLogin: () => Promise<void> }) {
             className="w-full h-full object-contain relative z-10" 
             alt="Talee Character"
             referrerPolicy="no-referrer"
+            loading="eager"
+            {...({ fetchPriority: "high" } as any)}
           />
           <div className="absolute -top-4 -right-4 w-14 h-14 glass-light rounded-full flex items-center justify-center shadow-2xl z-20">
             <Sparkles className="w-7 h-7 text-brand-key" />

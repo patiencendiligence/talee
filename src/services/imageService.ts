@@ -1,15 +1,16 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import { OpenAI } from "openai";
 import { generatePlaceholderImage } from "../utils/imageGenerator";
 export { generatePlaceholderImage };
 import { db, auth } from "../lib/firebase";
-import { collection, query, where, getDocs, setDoc, doc } from "firebase/firestore";
+import { collection, query, where, getDocs, getDoc, setDoc, doc } from "firebase/firestore";
 import { hashText } from "../lib/utils";
 import { compressImage, uploadImage, generateImageHash } from "../utils/imageUtils";
 
-// Initialize Gemini with safety for process.env
-const geminiKey = process.env.GEMINI_API_KEY || (import.meta as any).env.VITE_GEMINI_API_KEY;
-const ai = new GoogleGenerativeAI(geminiKey!);
+// Initialize Gemini with GoogleGenAI as per modern SDK guidelines
+const ai = new GoogleGenAI({ 
+  apiKey: process.env.GEMINI_API_KEY 
+});
 
 const openai = new OpenAI({
   apiKey: (import.meta as any).env.VITE_OPENAI_API,
@@ -71,117 +72,131 @@ async function processAndCacheImage(rawBlob: Blob, hash: string, prompt: string,
   return imageUrl;
 }
 
-export async function getStoryImage(text: string, stylePrompt: string, context?: string): Promise<string> {
+export async function getStoryImage(text: string, stylePrompt: string, context?: string): Promise<{ imageUrl: string, type: 'ai' | 'openai' | 'pollinations' | 'placeholder' }> {
   const hash = await hashText(`${text}_${stylePrompt}_${context || ''}`);
   
   // Tier 0: Check Cache
   try {
-    const cacheRef = collection(db, "image_cache");
-    const q = query(cacheRef, where("hash", "==", hash));
-    const querySnapshot = await getDocs(q);
-    if (!querySnapshot.empty) {
-      const data = querySnapshot.docs[0].data();
-      // If it's a real image, return it. If it's a placeholder, we might want to retry if it was a quota issue.
+    const cachedDoc = await getDoc(doc(db, "image_cache", hash));
+    if (cachedDoc.exists()) {
+      const data = cachedDoc.data();
+      // If it's a real image, return it.
       if (data.type !== 'placeholder') {
         console.log("Cached image found");
-        return data.imageUrl;
+        return { imageUrl: data.imageUrl, type: data.type as any };
       }
     }
   } catch (error) {
     console.warn("Cache check failed:", error);
   }
 
-  // Tier 1: Gemini AI Image Generation (Fallback attempt, though standard Gemini usually returns text)
+  // Tier 1: Gemini AI (General Image Generation)
   try {
-    console.log("Generating image for:", text, "with style:", stylePrompt);
+    console.log("Generating image for:", text);
+    const systemPrompt = `You are a storybook illustrator. Create a beautiful illustration for: "${text}". Style: ${stylePrompt}. Context: ${context || ''}. NO TEXT in image. High quality, whimsical art.`;
     
-    const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const systemPrompt = `You are a storybook illustrator. Create an image for: "${text}". Style: ${stylePrompt}. Context: ${context || ''}. NO TEXT in image.`;
-    
-    const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
+    // Using exact SDK format from skill
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash-image",
+      contents: {
+        parts: [{ text: systemPrompt }]
+      },
+      config: {
+        imageConfig: {
+          aspectRatio: "1:1"
+        }
+      }
     });
     
-    const response = await result.response;
-    console.log("Gemini response received.");
-
     let rawBlob: Blob | null = null;
-    let mimeType = 'image/png';
-    
-    if (response.candidates && response.candidates[0]?.content?.parts) {
-      const parts = response.candidates[0].content.parts;
-      for (const part of parts) {
+    if (response.candidates?.[0]?.content?.parts) {
+      for (const part of response.candidates[0].content.parts) {
         if (part.inlineData) {
-          mimeType = part.inlineData.mimeType || 'image/png';
-          rawBlob = await base64ToBlob(part.inlineData.data, mimeType);
+          rawBlob = await base64ToBlob(part.inlineData.data, part.inlineData.mimeType || 'image/png');
           break;
         }
       }
     }
 
-    if (!rawBlob) {
-      throw new Error("Gemini did not return an image part (standard behavior for text-only models). Falling back to OpenAI...");
+    if (rawBlob) {
+      const imageUrl = await processAndCacheImage(rawBlob, hash, text, 'ai');
+      return { imageUrl, type: 'ai' };
     }
-
-    return await processAndCacheImage(rawBlob, hash, text, 'ai');
-
   } catch (error: any) {
-    console.warn("Gemini stage ended:", error.message || error);
-    
-    // Check if it's a quota error
-    const isGeminiQuota = error?.message?.includes('429') || error?.message?.includes('quota');
-    
-    // Use the OpenAI key from Vite env
-    const openaiKey = (import.meta as any).env.VITE_OPENAI_API;
-
-    if (openaiKey) {
-      console.log("Attempting OpenAI fallback (DALL-E 3)...");
-      try {
-        const fullPrompt = `Storybook illustration style: ${stylePrompt}. Scene: ${text}. Context: ${context || ''}. NO TEXT in image. High quality, beautiful art.`;
-        
-        const response = await openai.images.generate({
-          model: "dall-e-3",
-          prompt: fullPrompt,
-          n: 1,
-          size: "1024x1024",
-          response_format: "b64_json"
-        });
-
-        const base64 = response.data[0].b64_json;
-        if (base64) {
-          const fallbackBlob = await base64ToBlob(base64, "image/png");
-          console.log("OpenAI image generated successfully.");
-          return await processAndCacheImage(fallbackBlob, hash, text, 'openai');
-        }
-      } catch (oaError: any) {
-        console.error("OpenAI Fallback failed:", oaError.message || oaError);
-        const isOpenAIQuota = oaError?.message?.includes('429') || oaError?.message?.includes('quota') || oaError?.message?.includes('insufficient_quota');
-        
-        if (isGeminiQuota || isOpenAIQuota) {
-           throw new Error("QUOTA_EXCEEDED");
-        }
-      }
-    } else {
-      console.warn("No OpenAI API key found (VITE_OPENAI_API)");
-      if (isGeminiQuota) throw new Error("QUOTA_EXCEEDED");
-    }
-
-    console.log("Using placeholder as final fallback");
-    const imageUrl = generatePlaceholderImage(text);
-    
-    // Optional: Cache the placeholder for consistency
-    try {
-      await setDoc(doc(db, "image_cache", hash), {
-        hash,
-        imageUrl,
-        prompt: text,
-        type: 'placeholder',
-        createdAt: new Date().toISOString()
-      });
-    } catch (e) {
-      console.warn("Failed to cache placeholder:", e);
-    }
-
-    return imageUrl;
+    console.warn("Gemini stage failed:", error.message || error);
   }
+
+  // Tier 2: OpenAI (DALL-E 3)
+  const openaiKey = (import.meta as any).env.VITE_OPENAI_API;
+  if (openaiKey) {
+    try {
+      console.log("Attempting OpenAI fallback...");
+      const fullPrompt = `Storybook illustration style: ${stylePrompt}. Scene: ${text}. Context: ${context || ''}. NO TEXT in image. High quality digital painting.`;
+      const response = await openai.images.generate({
+        model: "dall-e-3",
+        prompt: fullPrompt,
+        n: 1,
+        size: "1024x1024",
+        response_format: "b64_json"
+      });
+      const base64 = response.data[0].b64_json;
+      if (base64) {
+        const fallbackBlob = await base64ToBlob(base64, "image/png");
+        const imageUrl = await processAndCacheImage(fallbackBlob, hash, text, 'openai');
+        return { imageUrl, type: 'openai' };
+      }
+    } catch (oaError: any) {
+      const errorMsg = oaError.message || String(oaError);
+      const isQuotaOrBilling = errorMsg.toLowerCase().includes('billing') || 
+                              errorMsg.toLowerCase().includes('quota') || 
+                              errorMsg.toLowerCase().includes('hard limit') ||
+                              errorMsg.includes('429');
+      
+      if (isQuotaOrBilling) {
+        console.warn("OpenAI limit reached (billing/quota). Trying next fallback...");
+      } else {
+        console.error("OpenAI Fallback failed:", errorMsg);
+      }
+    }
+  }
+
+  // Tier 3: Pollinations AI (High Quality, Free, Stable fallback)
+  try {
+    console.log("Attempting Pollinations AI fallback...");
+    const pollinationsPrompt = encodeURIComponent(`Storybook style: ${stylePrompt}. Scene: ${text}. Context: ${context || ''}. No text, high quality digital art.`);
+    const pollinationsUrl = `https://image.pollinations.ai/prompt/${pollinationsPrompt}?width=1024&height=1024&nologo=true&seed=${Math.floor(Math.random() * 1000000)}&model=flux`;
+    
+    // Add a simple timeout to fetch to prevent hanging
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+    
+    const response = await fetch(pollinationsUrl, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) throw new Error("Pollinations API returned error");
+    
+    const blob = await response.blob();
+    const imageUrl = await processAndCacheImage(blob, hash, text, 'pollinations');
+    return { imageUrl, type: 'pollinations' };
+  } catch (pError) {
+    console.warn("Pollinations AI stage failed:", pError);
+  }
+
+  // Final Fallback: Placeholder
+  console.log("Using placeholder as final fallback");
+  const imageUrl = generatePlaceholderImage(text);
+  
+  try {
+    await setDoc(doc(db, "image_cache", hash), {
+      hash,
+      imageUrl,
+      prompt: text,
+      type: 'placeholder',
+      createdAt: new Date().toISOString()
+    });
+  } catch (e) {
+    console.warn("Failed to cache placeholder:", e);
+  }
+
+  return { imageUrl, type: 'placeholder' };
 }

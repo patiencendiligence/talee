@@ -141,6 +141,7 @@ export async function addScene(roomId: string, userId: string, text: string, ind
         index,
         text,
         imageUrl: placeholderUrl,
+        imageType: manualImageUrl ? 'manual' : 'placeholder',
         isGenerating: manualImageUrl ? false : true,
         createdBy: userId,
         createdAt: serverTimestamp(),
@@ -178,29 +179,31 @@ export async function addScene(roomId: string, userId: string, text: string, ind
         const stylePrompt = STORY_STYLES[styleIndex!].prompt;
         
         try {
-          const aiImageUrl = await getStoryImage(text, stylePrompt, storyContext);
+          const result = await getStoryImage(text, stylePrompt, storyContext);
           await updateDoc(sceneRef, {
-            imageUrl: aiImageUrl,
+            imageUrl: result.imageUrl,
+            imageType: result.type,
             isGenerating: false,
-            needsRetry: false
+            needsRetry: result.type === 'placeholder'
           });
         } catch (error: any) {
-          if (error.message === 'QUOTA_EXCEEDED') {
-            console.warn("Quota exceeded, will retry later.");
-            await updateDoc(sceneRef, {
-              needsRetry: true
-              // isGenerating remains true for auto-retry
-            });
-          } else {
-            console.error("AI Generation failed:", error);
-            await updateDoc(sceneRef, {
-              isGenerating: false,
-              needsRetry: true // This will signal manual retry
-            });
-          }
+          console.error("AI Generation inner failed:", error);
+          await updateDoc(sceneRef, {
+            isGenerating: false,
+            needsRetry: true
+          });
         }
       } catch (e) {
-        console.error("Background task error:", e);
+        console.error("Background task outer error:", e);
+        // Ensure state is updated even on fatal outer errors
+        try {
+          await updateDoc(sceneRef, {
+            isGenerating: false,
+            needsRetry: true
+          });
+        } catch (innerE) {
+          console.error("Failed to update stuck state:", innerE);
+        }
       }
     };
 
@@ -215,12 +218,13 @@ export async function manualRetryGeneration(roomId: string, sceneId: string): Pr
   const sceneRef = doc(db, "rooms", roomId, "scenes", sceneId);
   
   try {
+    // Set to a "ready for retry" state
     await updateDoc(sceneRef, {
       isGenerating: true,
-      needsRetry: false
+      needsRetry: true
     });
     
-    // Trigger the actual logic using resumeGeneration which is already designed for this
+    // Trigger logic
     await resumeGeneration(roomId, sceneId);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `rooms/${roomId}/scenes/${sceneId}`);
@@ -242,6 +246,7 @@ export async function resumeGeneration(roomId: string, sceneId: string): Promise
     const sceneData = sceneSnap.data() as Scene;
     const roomData = roomSnap.data() as Room;
 
+    // Allow retry if it's currently generating and marked for retry
     if (!sceneData.isGenerating || !sceneData.needsRetry) return;
 
     // Build context again
@@ -260,25 +265,31 @@ export async function resumeGeneration(roomId: string, sceneId: string): Promise
     const stylePrompt = STORY_STYLES[dailyStyle].prompt;
 
     try {
-      const aiImageUrl = await getStoryImage(sceneData.text, stylePrompt, storyContext);
+      const result = await getStoryImage(sceneData.text, stylePrompt, storyContext);
       await updateDoc(sceneRef, {
-        imageUrl: aiImageUrl,
+        imageUrl: result.imageUrl,
+        imageType: result.type,
         isGenerating: false,
-        needsRetry: false
+        needsRetry: result.type === 'placeholder'
       });
     } catch (error: any) {
-      if (error.message === 'QUOTA_EXCEEDED') {
-        // Still no quota, do nothing (will be tried next time user loads room)
-        console.log("Retry failed: still quota limited");
-      } else {
-        await updateDoc(sceneRef, {
-          isGenerating: false,
-          needsRetry: false
-        });
-      }
+      console.error("AI Generation retry failed:", error);
+      await updateDoc(sceneRef, {
+        isGenerating: false,
+        needsRetry: true
+      });
     }
   } catch (e) {
-    console.error("Failed to resume generation:", e);
+    console.error("Failed to resume generation fatal error:", e);
+    // Try one last time to clear the loading state
+    try {
+      await updateDoc(sceneRef, {
+        isGenerating: false,
+        needsRetry: true
+      });
+    } catch (innerE) {
+      console.error("Could not clear stuck state on fatal error:", innerE);
+    }
   }
 }
 

@@ -25,16 +25,16 @@ export function StoryBook({ scenes, startIndex = 0, onClose }: { scenes: Scene[]
         </button>
       </div>
 
-      <div className="flex-1 relative overflow-hidden flex items-center justify-center px-6">
+      <div className="flex-1 relative flex items-center justify-center px-6">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentIndex}
             initial={{ opacity: 0, scale: 0.9, rotate: -2 }}
             animate={{ opacity: 1, scale: 1, rotate: 0 }}
             exit={{ opacity: 0, scale: 1.1, rotate: 2 }}
-            className="w-full max-w-sm flex flex-col items-center gap-10"
+            className="w-full  max-w-sm flex flex-col items-center gap-10"
           >
-            <div className="w-full aspect-[4/5] rounded-[3rem] overflow-hidden shadow-[0_40px_80px_rgba(0,0,0,0.4)] bg-white/5 p-4 border border-white/10 relative group">
+            <div className="w-full aspect-[4/5] rounded-[3rem] shadow-[0_40px_80px_rgba(0,0,0,0.4)] bg-white/5 p-4 border border-white/10 relative group">
               <img 
                 src={currentScene.imageUrl} 
                 className={`w-full h-full object-cover rounded-[2.5rem] shadow-2xl transition-all duration-700 ${currentScene.isGenerating ? 'blur-md opacity-50 scale-105' : 'blur-0 opacity-100'}`} 
@@ -67,24 +67,25 @@ export function StoryBook({ scenes, startIndex = 0, onClose }: { scenes: Scene[]
             </div>
           </motion.div>
         </AnimatePresence>
-      </div>
 
-      <div className="p-8 pb-16 flex items-center justify-between max-w-md mx-auto w-full gap-6">
-        <button 
-          onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
-          disabled={currentIndex === 0}
-          className="flex-1 h-20 glass rounded-[2.5rem] flex items-center justify-center text-brand-key disabled:opacity-10 shadow-lg active:scale-95 transition-all"
-        >
-          <ChevronLeft className="w-10 h-10" />
-        </button>
-        <button 
-          onClick={() => setCurrentIndex(prev => Math.min(scenes.length - 1, prev + 1))}
-          disabled={currentIndex === scenes.length - 1}
-          className="flex-1 h-20 bg-brand-key rounded-[2.5rem] flex items-center justify-center text-white disabled:opacity-20 shadow-xl shadow-brand-key/20 active:scale-95 transition-all"
-        >
-          <ChevronRight className="w-10 h-10" />
-        </button>
+        
       </div>
+<div className="p-8 pb-8 flex items-center justify-between max-w-md mx-auto w-full gap-3">
+          <button 
+            onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
+            disabled={currentIndex === 0}
+            className="flex-1 h-15 glass rounded-[2rem] flex items-center justify-center text-brand-key disabled:opacity-10 shadow-lg active:scale-95 transition-all"
+          >
+            <ChevronLeft className="w-10 h-10" />
+          </button>
+          <button 
+            onClick={() => setCurrentIndex(prev => Math.min(scenes.length - 1, prev + 1))}
+            disabled={currentIndex === scenes.length - 1}
+            className="flex-1 h-15 bg-brand-key rounded-[2rem] flex items-center justify-center text-white disabled:opacity-20 shadow-xl shadow-brand-key/20 active:scale-95 transition-all"
+          >
+            <ChevronRight className="w-10 h-10" />
+          </button>
+        </div>
     </div>
   );
 }

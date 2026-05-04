@@ -22,6 +22,7 @@ export interface Scene {
   index: number; // 0-6
   text: string;
   imageUrl: string;
+  imageType?: 'ai' | 'openai' | 'placeholder' | 'manual';
   isGenerating?: boolean;
   needsRetry?: boolean;
   createdBy: string;

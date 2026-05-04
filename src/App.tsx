@@ -25,6 +25,7 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       setUser(u);
       if (u) {
+        setLoading(false); // Set loading to false as soon as user is found
         try {
           const snap = await getDoc(doc(db, "users", u.uid));
           if (snap.exists()) {
@@ -35,8 +36,8 @@ export default function App() {
         }
       } else {
         setProfile(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
     return unsubscribe;
   }, []);

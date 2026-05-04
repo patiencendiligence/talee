@@ -47,13 +47,27 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
       const data = sn.docs.map(d => d.data() as Scene);
       setScenes(data);
       
-      // Auto-resume generation for scenes that need retry
+      // Auto-resume generation for scenes that need retry (placeholders or failed AI attempts)
       data.forEach(scene => {
-        if (scene.isGenerating && scene.needsRetry && !resumingRef.current.has(scene.id)) {
+        const isPlaceholder = scene.imageType === 'placeholder';
+        const isStuck = scene.isGenerating && scene.needsRetry;
+        
+        if ((isPlaceholder || isStuck) && scene.needsRetry && !resumingRef.current.has(scene.id)) {
+          // Only auto-retry if some time has passed in the session
           resumingRef.current.add(scene.id);
-          resumeGeneration(roomId, scene.id).finally(() => {
-            resumingRef.current.delete(scene.id);
-          });
+          
+          // Small delay for auto-resuming to avoid UI stutter on mount
+          setTimeout(() => {
+            manualRetryGeneration(roomId, scene.id).finally(() => {
+              // Wait 2 minutes before allowing another auto-trigger for this scene instance
+              // to prevent rapid-fire retries on persistent quota issues
+              setTimeout(() => {
+                if (resumingRef.current.has(scene.id)) {
+                  resumingRef.current.delete(scene.id);
+                }
+              }, 120000); 
+            });
+          }, 2000);
         }
       });
     }, (error) => {
@@ -231,12 +245,12 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
           return (
             <motion.div
               key={i}
-              initial={{ opacity: 0, scale: 0.9 }}
+              initial={i < 2 ? false : { opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: i * 0.05 }}
+              transition={{ delay: i < 0 ? 0 : i * 0.05 }}
               className="relative aspect-square"
             >
-              <button
+              <div
                 onClick={() => {
                   if (scene) {
                     setStoryStartIndex(i);
@@ -245,39 +259,48 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
                     setActiveSlot(i);
                   }
                 }}
-                className={`w-full h-full glass rounded-[2.5rem] overflow-hidden relative group transition-all ${
+                className={`w-full h-full glass rounded-[2.5rem] overflow-hidden relative group transition-all cursor-pointer ${
                   isActive && isNext ? "border-brand-key/40 border-2 shadow-lg shadow-brand-key/10" : ""
-                } ${!isActive && !scene ? "opacity-30 grayscale" : ""}`}
+                } ${!isActive && !scene ? "opacity-30 grayscale cursor-not-allowed" : ""}`}
               >
                 {scene ? (
                   <>
-                    <img 
-                      src={scene.imageUrl} 
-                      className={`w-full h-full object-cover transition-opacity duration-700 ${scene.isGenerating ? 'opacity-30 blur-sm' : 'opacity-100'}`} 
-                      alt="story" 
-                      referrerPolicy="no-referrer" 
-                    />
-                    {scene.isGenerating && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-                        <div className="w-6 h-6 border-2 border-brand-key/30 border-t-brand-key rounded-full animate-spin" />
-                        <span className="text-[8px] font-black text-brand-key animate-pulse font-sans">그리는 중...</span>
-                      </div>
-                    )}
-                    {!scene.isGenerating && scene.needsRetry && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/60 backdrop-blur-sm">
-                        <p className="text-[8px] font-black text-white text-center px-2 mb-1">생성 실패</p>
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRetry(scene.id);
-                          }}
-                          className="px-3 py-1.5 glass-light rounded-xl font-bold text-slate-800 text-[10px] flex items-center gap-1.5 active:scale-95 transition-all"
-                        >
-                          <RefreshCcw className="w-3 h-3" />
-                          다시 생성
-                        </button>
-                      </div>
-                    )}
+                      <img 
+                        src={scene.imageUrl} 
+                        className={`w-full h-full object-cover transition-opacity duration-700 ${scene.isGenerating && scene.imageType !== 'placeholder' ? 'opacity-30 blur-sm' : 'opacity-100'}`} 
+                        alt="story" 
+                        referrerPolicy="no-referrer"
+                        loading={i < 2 ? "eager" : "lazy"}
+                        {...(i === 0 ? { fetchPriority: "high" } as any : {})}
+                      />
+                      {scene.isGenerating && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-white/5 backdrop-blur-[2px]">
+                          <div className="relative">
+                            <div className="w-8 h-8 border-2 border-brand-key/10 rounded-full" />
+                            <div className="absolute top-0 left-0 w-8 h-8 border-2 border-transparent border-t-brand-key rounded-full animate-spin" />
+                          </div>
+                          <span className="text-[9px] font-black text-brand-key tracking-wider animate-pulse font-sans bg-white/80 px-2 py-0.5 rounded-full shadow-sm">
+                            {scene.imageType === 'placeholder' ? '인공지능 화가 호출 중...' : '마법 같은 그림 그리는 중...'}
+                          </span>
+                        </div>
+                      )}
+                      {scene.needsRetry && !scene.isGenerating && (
+                        <div className={`absolute inset-0 flex flex-col items-center justify-center gap-2 ${scene.imageType !== 'placeholder' ? 'bg-black/60 backdrop-blur-sm' : ''}`}>
+                          <p className={`text-[8px] font-black text-center px-2 mb-1 ${scene.imageType !== 'placeholder' ? 'text-white' : 'text-brand-key bg-white/80 px-2 py-1 rounded-lg'}`}>
+                            {scene.imageType === 'placeholder' ? '상상력이 휴식 중이에요' : '생성 실패'}
+                          </p>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRetry(scene.id);
+                            }}
+                            className="px-3 py-1.5 glass-light rounded-xl font-bold text-slate-800 text-[10px] flex items-center gap-1.5 active:scale-95 transition-all shadow-xl"
+                          >
+                            <RefreshCcw className="w-3 h-3" />
+                            그림 다시 받기
+                          </button>
+                        </div>
+                      )}
                     {!scene.isGenerating && (
                       <button 
                         onClick={(e) => {
@@ -306,7 +329,7 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
                 <div className="absolute top-3 left-3 w-6 h-6 rounded-full glass-dark flex items-center justify-center text-[10px] font-black text-slate-500">
                   {i + 1}
                 </div>
-              </button>
+              </div>
             </motion.div>
           );
         })}

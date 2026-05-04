@@ -15,9 +15,13 @@
 }
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
   body {
     -webkit-tap-highlight-color: transparent;
     @apply bg-[#eaece5] min-h-screen text-slate-800 antialiased font-sans;
+    font-display: swap;
   }
 }
 
@@ -25,15 +29,15 @@
   background-color: transparent;
 }
 .glass {
-  @apply bg-white/60 backdrop-blur-3xl border border-white/60 shadow-[0_20px_50px_rgba(0,0,0,0.05)];
+  @apply bg-white/60 backdrop-blur-xl border border-white/60 shadow-[0_20px_50px_rgba(0,0,0,0.05)];
 }
 
 .glass-dark {
-  @apply bg-slate-900/5 backdrop-blur-3xl border border-slate-900/10 shadow-inner;
+  @apply bg-slate-900/5 backdrop-blur-xl border border-slate-900/10 shadow-inner;
 }
 
 .glass-light {
-  @apply bg-white/80 backdrop-blur-2xl border border-white/40 shadow-sm;
+  @apply bg-white/80 backdrop-blur-lg border border-white/40 shadow-sm;
 }
 
 .card-child {
