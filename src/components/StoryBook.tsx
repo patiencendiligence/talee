@@ -29,6 +29,7 @@ export function StoryBook({ scenes, startIndex = 0, onClose }: { scenes: Scene[]
        <button 
             onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
             disabled={currentIndex === 0}
+            style={{zIndex:'10', position: 'absolute', left:'5px'}}
             className="flex-0 mr-1 h-10 glass rounded-[2rem] flex items-center justify-center text-brand-key disabled:opacity-10 shadow-lg active:scale-95 transition-all"
           >
             <ChevronLeft className="w-10 h-10" />
@@ -41,7 +42,7 @@ export function StoryBook({ scenes, startIndex = 0, onClose }: { scenes: Scene[]
             exit={{ opacity: 0, scale: 1.1, rotate: 2 }}
             className="w-full  max-w-md flex flex-col items-center gap-2"
           >
-            <div className="w-full aspect-[4/5] rounded-[3rem] shadow-[0_40px_80px_rgba(0,0,0,0.4)] bg-white/5 p-4 border border-white/10 relative group">
+            <div className="w-full rounded-[3rem] shadow-[0_40px_80px_rgba(0,0,0,0.4)] bg-white/5 p-4 border border-white/10 relative group" style={{width: '98vw'}}>
               <img 
                 src={currentScene.imageUrl} 
                 className={`w-full h-full object-cover rounded-[1.5rem] shadow-2xl transition-all duration-700 ${currentScene.isGenerating ? 'blur-md opacity-50 scale-105' : 'blur-0 opacity-100'}`} 
@@ -68,7 +69,7 @@ export function StoryBook({ scenes, startIndex = 0, onClose }: { scenes: Scene[]
             </div>
             
             <div className="space-y-4">
-              <p className="text-xl sm:text-xl text-white font-black text-center leading-relaxed tracking-tight drop-shadow-xl">
+              <p className="absolute text-xl sm:text-xl text-white font-black text-center leading-relaxed tracking-tight drop-shadow-xl" style={{bottom: '5%',left: 0,width: '100vw'}}>
                 "{currentScene.text}"
               </p>
             </div>
@@ -77,6 +78,7 @@ export function StoryBook({ scenes, startIndex = 0, onClose }: { scenes: Scene[]
         <button 
             onClick={() => setCurrentIndex(prev => Math.min(scenes.length - 1, prev + 1))}
             disabled={currentIndex === scenes.length - 1}
+            style={{zIndex:'10', position: 'absolute', right:'5px'}}
             className="flex-0 ml-1 h-10 bg-brand-key rounded-[2rem] flex items-center justify-center text-white disabled:opacity-20 shadow-xl shadow-brand-key/20 active:scale-95 transition-all"
           >
             <ChevronRight className="w-10 h-10" />

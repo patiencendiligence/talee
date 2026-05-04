@@ -202,7 +202,7 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
 
   return (
     <div className="space-y-8 pb-32 relative">
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2">
         <button onClick={onBack} className="w-12 h-12 glass flex items-center justify-center text-slate-400 rounded-2xl hover:text-slate-900 transition-colors">
           <ArrowLeft className="w-6 h-6" />
         </button>

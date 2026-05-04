@@ -44,7 +44,7 @@ export function ArchiveView({ roomId, onBack }: { roomId: string, onBack: () => 
           <ArrowLeft className="w-6 h-6" />
         </button>
         <div>
-          <h2 className="text-2xl font-black tracking-tight text-slate-900">추억 보관함</h2>
+          <h2 className="text-2xl font-black tracking-tight text-slate-900">이야기 보관함</h2>
           <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">PAST STORIES</p>
         </div>
       </div>
