@@ -1,6 +1,6 @@
 {
   "name": "Talee",
-  "description": "Collaborative daily storytelling with a strict 1-hour window and 7-scene limit.",
+  "description": "Collaborative daily storytelling with a strict 1-hour window and 5-scene limit.",
   "requestFramePermissions": ["microphone"],
   "majorCapabilities": ["AI Image Generation", "Voice to Text", "Real-time Collaboration"]
 }

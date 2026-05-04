@@ -19,7 +19,7 @@ export interface Scene {
   id: string;
   roomId: string;
   date: string; // YYYY-MM-DD
-  index: number; // 0-6
+  index: number; // 0-4
   text: string;
   imageUrl: string;
   imageType?: 'ai' | 'openai' | 'placeholder' | 'manual';

@@ -232,13 +232,13 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
           </div>
           <div className="text-left">
             <p className="text-2xl font-black tracking-tight text-slate-800">오늘의 꼬리물기 동화</p>
-            <p className="text-xs font-black text-brand-key uppercase tracking-widest">{scenes.length} / 7 SCENES</p>
+            <p className="text-xs font-black text-brand-key uppercase tracking-widest">{scenes.length} / 5 SCENES</p>
           </div>
         </motion.button>
       )}
 
       <div className="grid grid-cols-2 gap-4">
-        {Array.from({ length: 7 }).map((_, i) => {
+        {Array.from({ length: 5 }).map((_, i) => {
           const scene = scenes.find(s => s.index === i);
           const isNext = !scene && (i === 0 || scenes.find(s => s.index === i - 1));
           

@@ -35,7 +35,7 @@ export function Landing({ onLogin }: { onLogin: () => Promise<void> }) {
           talee
         </h1>
         <p className="text-xl text-slate-500 max-w-xs mx-auto font-medium">
-          매일 1시간, 7개의 이야기로 채워지는<br /> 우리만의 꼬리물기 이야기책
+          매일 1시간, 5개의 이야기로 채워지는<br /> 우리만의 꼬리물기 이야기책
         </p>
       </motion.div>
       <motion.div 

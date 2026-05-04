@@ -78,7 +78,7 @@ service cloud.firestore {
                         (request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.members) && 
                         isValidId(sceneId) &&
                         request.resource.data.index >= 0 && 
-                        request.resource.data.index < 7 &&
+                        request.resource.data.index < 5 &&
                         request.resource.data.createdBy == request.auth.uid &&
                         request.resource.data.keys().hasAll(['roomId', 'date', 'index', 'text', 'imageUrl', 'createdBy', 'createdAt', 'isGenerating', 'members']) &&
                         request.resource.data.members is list &&
