@@ -16,16 +16,23 @@ export function StoryBook({ scenes, startIndex = 0, onClose }: { scenes: Scene[]
 
   return (
     <div className="fixed inset-0 bg-[#eaece5] z-[200] flex flex-col">
-      <div className="flex items-center justify-between p-6">
-        <div className="glass-light px-4 py-2 rounded-2xl font-black text-slate-900 shadow-sm">
+
+        <div className="absolute glass-light px-4 py-2 rounded-2xl font-black text-slate-900 shadow-sm" style={{top: '20px', left:'20px'}}>
            {currentIndex + 1} / {scenes.length}
         </div>
-        <button onClick={onClose} className="w-12 h-12 glass rounded-2xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-900 transition-colors">
+        <button onClick={onClose} className="absolute w-12 h-12 glass rounded-2xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-900 transition-colors" style={{ top:'20px', right: '20px', zIndex:10}}>
           <X className="w-6 h-6" />
         </button>
-      </div>
 
-      <div className="flex-1 relative flex items-center justify-center px-6">
+
+      <div style={{ 'overflowY': 'scroll'}} className="flex-1 relative flex items-center justify-center px-3">
+       <button 
+            onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
+            disabled={currentIndex === 0}
+            className="flex-0 mr-1 h-10 glass rounded-[2rem] flex items-center justify-center text-brand-key disabled:opacity-10 shadow-lg active:scale-95 transition-all"
+          >
+            <ChevronLeft className="w-10 h-10" />
+          </button>
         <AnimatePresence mode="wait">
           <motion.div
             key={currentIndex}
@@ -61,31 +68,22 @@ export function StoryBook({ scenes, startIndex = 0, onClose }: { scenes: Scene[]
             </div>
             
             <div className="space-y-4">
-              <p className="text-2xl sm:text-3xl text-white font-black text-center leading-relaxed tracking-tight drop-shadow-xl">
+              <p className="text-xl sm:text-xl text-white font-black text-center leading-relaxed tracking-tight drop-shadow-xl">
                 "{currentScene.text}"
               </p>
             </div>
           </motion.div>
         </AnimatePresence>
-
-        
-      </div>
-<div className="p-8 pb-8 flex items-center justify-between max-w-md mx-auto w-full gap-3">
-          <button 
-            onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
-            disabled={currentIndex === 0}
-            className="flex-1 h-15 glass rounded-[2rem] flex items-center justify-center text-brand-key disabled:opacity-10 shadow-lg active:scale-95 transition-all"
-          >
-            <ChevronLeft className="w-10 h-10" />
-          </button>
-          <button 
+        <button 
             onClick={() => setCurrentIndex(prev => Math.min(scenes.length - 1, prev + 1))}
             disabled={currentIndex === scenes.length - 1}
-            className="flex-1 h-15 bg-brand-key rounded-[2rem] flex items-center justify-center text-white disabled:opacity-20 shadow-xl shadow-brand-key/20 active:scale-95 transition-all"
+            className="flex-0 ml-1 h-10 bg-brand-key rounded-[2rem] flex items-center justify-center text-white disabled:opacity-20 shadow-xl shadow-brand-key/20 active:scale-95 transition-all"
           >
             <ChevronRight className="w-10 h-10" />
           </button>
-        </div>
+        
+      </div>
+
     </div>
   );
 }
