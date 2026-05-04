@@ -39,12 +39,12 @@ export function StoryBook({ scenes, startIndex = 0, onClose }: { scenes: Scene[]
             initial={{ opacity: 0, scale: 0.9, rotate: -2 }}
             animate={{ opacity: 1, scale: 1, rotate: 0 }}
             exit={{ opacity: 0, scale: 1.1, rotate: 2 }}
-            className="w-full  max-w-sm flex flex-col items-center gap-10"
+            className="w-full  max-w-md flex flex-col items-center gap-2"
           >
             <div className="w-full aspect-[4/5] rounded-[3rem] shadow-[0_40px_80px_rgba(0,0,0,0.4)] bg-white/5 p-4 border border-white/10 relative group">
               <img 
                 src={currentScene.imageUrl} 
-                className={`w-full h-full object-cover rounded-[2.5rem] shadow-2xl transition-all duration-700 ${currentScene.isGenerating ? 'blur-md opacity-50 scale-105' : 'blur-0 opacity-100'}`} 
+                className={`w-full h-full object-cover rounded-[1.5rem] shadow-2xl transition-all duration-700 ${currentScene.isGenerating ? 'blur-md opacity-50 scale-105' : 'blur-0 opacity-100'}`} 
                 alt="Scene" 
                 referrerPolicy="no-referrer"
               />

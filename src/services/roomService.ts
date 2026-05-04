@@ -14,7 +14,7 @@ import {
   orderBy,
   writeBatch
 } from "firebase/firestore";
-import { db, handleFirestoreError, OperationType } from "../lib/firebase";
+import { db, auth, handleFirestoreError, OperationType } from "../lib/firebase";
 import { Room, Scene } from "../types";
 import { format } from "date-fns";
 import { getStoryImage, generatePlaceholderImage } from "./imageService";
@@ -128,10 +128,13 @@ export async function addScene(roomId: string, userId: string, text: string, ind
       const startTime = new Date(now);
       startTime.setHours(targetH, targetM, 0, 0);
       const endTime = new Date(startTime);
-      endTime.setHours(startTime.getHours() + 1);
+      endTime.setHours(startTime.getHours() + 4); // Increased to 4 hours for better usability
 
-      if (now < startTime || now > endTime) {
-        throw new Error("꼬리물기 시간이 아니예요! (지정 시간에만 가능)");
+      const isAdmin = auth.currentUser?.email === "patiencendiligence@gmail.com";
+      const isOwner = userId === roomData.ownerId;
+
+      if (!isAdmin && !isOwner && (now < startTime || now > endTime)) {
+        throw new Error("꼬리물기 시간이 아니예요! (지능형 참여 시간 제한 중)");
       }
 
       const newScene: Scene = {
