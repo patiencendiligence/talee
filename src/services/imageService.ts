@@ -102,6 +102,11 @@ async function processAndCacheImage(rawBlob: Blob, hash: string, prompt: string,
 
 export async function getStoryImage(text: string, stylePrompt: string, context?: string): Promise<{ imageUrl: string, type: 'ai' | 'openai' | 'pollinations' | 'placeholder' }> {
   console.log(`[ImageService] Starting generation for: "${text.substring(0, 30)}..."`);
+  
+  // 1. Add a small random stagger to prevent simultaneous requests from hitting the same rate limit
+  const stagger = Math.random() * 2000;
+  await new Promise(r => setTimeout(r, stagger));
+
   const hash = await hashText(`${text}_${stylePrompt}_${context || ''}`);
   
   // Tier 0: Check Cache
@@ -164,32 +169,45 @@ export async function getStoryImage(text: string, stylePrompt: string, context?:
   }
 
   // Tier 2: Pollinations AI (Stable, Free/Keyed)
-  try {
-    console.log("[ImageService] Tier 2: Pollinations Fallback...");
-    const pollinationsKey = "sk_abMRdPPA33IpcQ6uKt4PokI1lWVwPBAl"; // Key provided by user
-    const pollinationsPrompt = encodeURIComponent(`Storybook style: ${stylePrompt}. Scene: ${englishText}. Context: ${englishContext}. No text, high quality digital art.`);
-    const pollinationsUrl = `https://image.pollinations.ai/prompt/${pollinationsPrompt}?width=800&height=800&nologo=true&seed=${Math.floor(Math.random() * 1000000)}&model=flux`;
-    
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s
-    
-    const fetchResponse = await fetch(pollinationsUrl, { 
-      signal: controller.signal,
-      headers: {
-        'Authorization': `Bearer ${pollinationsKey}`
+  // Implement a retry loop for Pollinations to handle temporary queue congestion (429)
+  let pollinationsRetries = 0;
+  const maxPollinationsRetries = 2;
+  
+  while (pollinationsRetries <= maxPollinationsRetries) {
+    try {
+      console.log(`[ImageService] Tier 2: Pollinations Fallback (Attempt ${pollinationsRetries + 1})...`);
+      const pollinationsKey = "sk_abMRdPPA33IpcQ6uKt4PokI1lWVwPBAl"; 
+      const pollinationsPrompt = encodeURIComponent(`Storybook style: ${stylePrompt}. Scene: ${englishText}. Context: ${englishContext}. No text, high quality digital art.`);
+      const pollinationsUrl = `https://image.pollinations.ai/prompt/${pollinationsPrompt}?width=800&height=800&nologo=true&seed=${Math.floor(Math.random() * 1000000)}&model=flux`;
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000); 
+      
+      const fetchResponse = await fetch(pollinationsUrl, { 
+        signal: controller.signal,
+        headers: {
+          'Authorization': `Bearer ${pollinationsKey}`
+        }
+      });
+      clearTimeout(timeoutId);
+      
+      if (fetchResponse.ok) {
+        const blob = await fetchResponse.blob();
+        const imageUrl = await processAndCacheImage(blob, hash, text, 'pollinations');
+        return { imageUrl, type: 'pollinations' };
+      } else if (fetchResponse.status === 429) {
+        console.warn(`[ImageService] Pollinations busy (429). Retrying in 3 seconds...`);
+        pollinationsRetries++;
+        await new Promise(r => setTimeout(r, 3000));
+        continue;
+      } else {
+        console.warn(`[ImageService] Pollinations returned ${fetchResponse.status}. Skipping.`);
+        break;
       }
-    });
-    clearTimeout(timeoutId);
-    
-    if (fetchResponse.ok) {
-      const blob = await fetchResponse.blob();
-      const imageUrl = await processAndCacheImage(blob, hash, text, 'pollinations');
-      return { imageUrl, type: 'pollinations' };
-    } else {
-      console.warn(`[ImageService] Pollinations returned ${fetchResponse.status}`);
+    } catch (pError: any) {
+      console.warn("[ImageService] Pollinations Fallback failed:", pError.message || pError);
+      break;
     }
-  } catch (pError) {
-    console.warn("[ImageService] Pollinations Fallback failed:", pError);
   }
 
   // Tier 3: OpenAI (DALL-E 3) - Final AI Resort
