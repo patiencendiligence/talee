@@ -108,5 +108,12 @@ service cloud.firestore {
     match /admins/{adminId} {
       allow read: if isSignedIn();
     }
+
+    // User Usage Limits
+    match /user_usage/{userId} {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId) && 
+                              request.resource.data.keys().hasAll(['dailyCount', 'lastReset']);
+    }
   }
 }

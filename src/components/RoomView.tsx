@@ -11,6 +11,8 @@ import { moderateText } from '../lib/utils';
 import { compressImage, uploadImage, generateImageHash } from '../utils/imageUtils';
 import { format, addHours, isWithinInterval } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
+import { useToast } from './Toast';
+import { getRemainingUsage } from '../services/userService';
 
 export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, onBack: () => void, onOpenArchive: () => void }) {
   const [room, setRoom] = useState<Room | null>(null);
@@ -26,11 +28,16 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
   const [showMenu, setShowMenu] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [remainingEnergy, setRemainingEnergy] = useState<number | null>(null);
+  const { setToast } = useToast();
   const resumingRef = useRef<Set<string>>(new Set());
 
   const today = format(new Date(), 'yyyy-MM-dd');
 
   useEffect(() => {
+    // Fetch energy initially
+    getRemainingUsage().then(setRemainingEnergy);
+    
     const unsubRoom = onSnapshot(doc(db, "rooms", roomId), (sn) => {
       if (sn.exists()) setRoom(sn.data() as Room);
     }, (error) => {
@@ -137,8 +144,21 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
     }, 1000);
   };
 
-  const handleRetry = (sceneId: string) => {
-    manualRetryGeneration(roomId, sceneId);
+  const handleRetry = async (sceneId: string) => {
+    try {
+      await manualRetryGeneration(roomId, sceneId);
+      // Refresh energy after successful generation trigger
+      getRemainingUsage().then(setRemainingEnergy);
+    } catch (err: any) {
+      if (err.message === 'DAILY_LIMIT_EXCEEDED') {
+        setToast({ 
+          message: "오늘의 상상력 에너지를 다 썼어요! 내일 다시 만나요. (일일 15회 제한)", 
+          type: "error" 
+        });
+      } else {
+        setToast({ message: "그림을 다시 받는 데 실패했어요.", type: "error" });
+      }
+    }
   };
 
   const handleSubmit = async (manualImageUrl?: string) => {
@@ -150,6 +170,8 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
       const truncatedText = newText.length > 200 ? newText.substring(0, 197) + "..." : newText;
       const moderated = truncatedText ? moderateText(truncatedText) : "직접 올린 사진이에요.";
       await addScene(roomId, auth.currentUser!.uid, moderated, activeSlot, manualImageUrl);
+      // Refresh energy
+      getRemainingUsage().then(setRemainingEnergy);
       setActiveSlot(null);
       setNewText('');
     } catch (err: any) {
@@ -209,11 +231,16 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
         </button>
         <div className="flex-1 text-slate-900">
           <h2 className="text-2xl font-black tracking-tight">{room.name}</h2>
-          <div className="flex items-center gap-2 font-bold text-xs">
+          <div className="flex items-center gap-2 font-bold text-xs mt-1">
              <span className={isActive ? "text-brand-key" : "text-slate-300"}>
                {isActive ? "✨ OPEN" : "🌙 CLOSED"}
              </span>
              <span className="text-slate-300 uppercase tracking-widest">{room.dailyTime}</span>
+             {remainingEnergy !== null && (
+               <span className="ml-2 px-2 py-0.5 bg-yellow-400/10 text-yellow-600 rounded-full flex items-center gap-1">
+                 ⚡️ {remainingEnergy}
+               </span>
+             )}
           </div>
         </div>
         <button onClick={() => setShowMenu(true)} className="w-12 h-12 glass flex items-center justify-center text-slate-400 rounded-2xl transition-all">

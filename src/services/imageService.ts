@@ -100,16 +100,14 @@ async function processAndCacheImage(rawBlob: Blob, hash: string, prompt: string,
   return imageUrl;
 }
 
+import { checkAndIncrementUsage } from './userService';
+
 export async function getStoryImage(text: string, stylePrompt: string, context?: string): Promise<{ imageUrl: string, type: 'ai' | 'openai' | 'pollinations' | 'placeholder' }> {
   console.log(`[ImageService] Starting generation for: "${text.substring(0, 30)}..."`);
   
-  // 1. Add a small random stagger to prevent simultaneous requests from hitting the same rate limit
-  const stagger = Math.random() * 2000;
-  await new Promise(r => setTimeout(r, stagger));
-
   const hash = await hashText(`${text}_${stylePrompt}_${context || ''}`);
   
-  // Tier 0: Check Cache
+  // Tier 0: Check Cache (Check this BEFORE usage limit to save quota for repeated requests)
   try {
     const cachedDoc = await getDoc(doc(db, "image_cache", hash));
     if (cachedDoc.exists()) {
@@ -122,6 +120,18 @@ export async function getStoryImage(text: string, stylePrompt: string, context?:
   } catch (error) {
     console.warn("[ImageService] Cache check failed:", error);
   }
+
+  // Check Usage Limit only for NEW generations
+  const { allowed, remaining } = await checkAndIncrementUsage();
+  if (!allowed) {
+    console.warn("[ImageService] Daily limit reached for user");
+    throw new Error("DAILY_LIMIT_EXCEEDED");
+  }
+  console.log(`[ImageService] Usage allowed. Remaining today: ${remaining}`);
+
+  // 1. Add a small random stagger to prevent simultaneous requests from hitting the same rate limit
+  const stagger = Math.random() * 2000;
+  await new Promise(r => setTimeout(r, stagger));
 
   // Translate to English to improve all AI models performance
   const englishText = await translateToEnglish(text);

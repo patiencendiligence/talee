@@ -282,6 +282,7 @@ export async function resumeGeneration(roomId: string, sceneId: string): Promise
         isGenerating: false,
         needsRetry: true
       });
+      throw error; // Re-throw for UI to show specific toast (e.g. usage limit)
     }
   } catch (e) {
     console.error("Failed to resume generation fatal error:", e);
@@ -294,6 +295,7 @@ export async function resumeGeneration(roomId: string, sceneId: string): Promise
     } catch (innerE) {
       console.error("Could not clear stuck state on fatal error:", innerE);
     }
+    throw e;
   }
 }
 

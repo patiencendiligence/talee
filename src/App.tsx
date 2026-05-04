@@ -10,6 +10,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { UserProfile } from './types';
 import { doc, getDoc } from 'firebase/firestore';
 import { loginWithGoogle } from './services/authService';
+import { ToastProvider } from './components/Toast';
 
 export default function App() {
   const [user, setUser] = useState<any>(null);
@@ -73,31 +74,33 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen text-slate-50 font-sans selection:bg-brand-key/30">
-      <Navbar user={user} onLogoClick={handleLogoClick} />
-      
-      <main className="max-w-2xl mx-auto px-4 py-8">
-        {(!user || (user && !profile && !loading)) ? (
-          <Landing onLogin={handleLogin} />
-        ) : activeRoomId && currentView === 'room' ? (
-          <RoomView 
-            roomId={activeRoomId} 
-            onBack={() => setCurrentView('dashboard')} 
-            onOpenArchive={() => setCurrentView('archive')}
-          />
-        ) : activeRoomId && currentView === 'archive' ? (
-          <ArchiveView roomId={activeRoomId} onBack={() => setCurrentView('room')} />
-        ) : (
-          <Dashboard profile={profile} onEnterRoom={(id) => {
-            setActiveRoomId(id);
-            setCurrentView('room');
-          }} />
-        )}
-      </main>
+    <ToastProvider>
+      <div className="min-h-screen text-slate-50 font-sans selection:bg-brand-key/30">
+        <Navbar user={user} onLogoClick={handleLogoClick} />
+        
+        <main className="max-w-2xl mx-auto px-4 py-8">
+          {(!user || (user && !profile && !loading)) ? (
+            <Landing onLogin={handleLogin} />
+          ) : activeRoomId && currentView === 'room' ? (
+            <RoomView 
+              roomId={activeRoomId} 
+              onBack={() => setCurrentView('dashboard')} 
+              onOpenArchive={() => setCurrentView('archive')}
+            />
+          ) : activeRoomId && currentView === 'archive' ? (
+            <ArchiveView roomId={activeRoomId} onBack={() => setCurrentView('room')} />
+          ) : (
+            <Dashboard profile={profile} onEnterRoom={(id) => {
+              setActiveRoomId(id);
+              setCurrentView('room');
+            }} />
+          )}
+        </main>
 
-      {/* Decorative Blur Blobs */}
-      <div className="fixed top-0 left-0 w-96 h-96 bg-brand-key/10 rounded-full blur-[120px] -translate-x-1/2 -translate-y-1/2 pointer-events-none z-[-1]" />
-      <div className="fixed bottom-0 right-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-[120px] translate-x-1/2 translate-y-1/2 pointer-events-none z-[-1]" />
-    </div>
+        {/* Decorative Blur Blobs */}
+        <div className="fixed top-0 left-0 w-96 h-96 bg-brand-key/10 rounded-full blur-[120px] -translate-x-1/2 -translate-y-1/2 pointer-events-none z-[-1]" />
+        <div className="fixed bottom-0 right-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-[120px] translate-x-1/2 translate-y-1/2 pointer-events-none z-[-1]" />
+      </div>
+    </ToastProvider>
   );
 }
