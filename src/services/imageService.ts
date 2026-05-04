@@ -121,14 +121,6 @@ export async function getStoryImage(text: string, stylePrompt: string, context?:
     console.warn("[ImageService] Cache check failed:", error);
   }
 
-  // Check Usage Limit only for NEW generations
-  const { allowed, remaining } = await checkAndIncrementUsage();
-  if (!allowed) {
-    console.warn("[ImageService] Daily limit reached for user");
-    throw new Error("DAILY_LIMIT_EXCEEDED");
-  }
-  console.log(`[ImageService] Usage allowed. Remaining today: ${remaining}`);
-
   // 1. Add a small random stagger to prevent simultaneous requests from hitting the same rate limit
   const stagger = Math.random() * 2000;
   await new Promise(r => setTimeout(r, stagger));

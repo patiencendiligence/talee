@@ -7,10 +7,16 @@ export interface UserUsage {
 }
 
 const MAX_DAILY_GENERATIONS = 15; // 하루 최대 생성 횟수
+const ADMIN_EMAIL = "patiencendiligence@gmail.com";
 
 export async function checkAndIncrementUsage(): Promise<{ allowed: boolean; remaining: number }> {
   const user = auth.currentUser;
   if (!user) return { allowed: false, remaining: 0 };
+
+  // Admin bypass
+  if (user.email === ADMIN_EMAIL) {
+    return { allowed: true, remaining: 999 };
+  }
 
   const usageRef = doc(db, 'user_usage', user.uid);
   const usageSnap = await getDoc(usageRef);

@@ -94,6 +94,12 @@ export async function updateRoom(roomId: string, updates: Partial<Room>): Promis
 }
 
 export async function addScene(roomId: string, userId: string, text: string, index: number, manualImageUrl?: string): Promise<void> {
+  // Check usage BEFORE starting any work to avoid orphaned documents or confusing states
+  const { allowed } = await checkAndIncrementUsage();
+  if (!allowed) {
+    throw new Error("DAILY_LIMIT_EXCEEDED");
+  }
+
   const dateStr = format(new Date(), "yyyy-MM-dd");
   const sceneId = `${dateStr}_${index}`;
   const roomRef = doc(db, "rooms", roomId);
@@ -184,18 +190,19 @@ export async function addScene(roomId: string, userId: string, text: string, ind
         
         try {
           const result = await getStoryImage(text, stylePrompt, storyContext);
-          await updateDoc(sceneRef, {
+          // Use setDoc with merge: true for ultimate safety against "document not found"
+          await setDoc(sceneRef, {
             imageUrl: result.imageUrl,
             imageType: result.type,
             isGenerating: false,
             needsRetry: result.type === 'placeholder'
-          });
+          }, { merge: true });
         } catch (error: any) {
           console.error("AI Generation inner failed:", error);
-          await updateDoc(sceneRef, {
+          await setDoc(sceneRef, {
             isGenerating: false,
             needsRetry: true
-          });
+          }, { merge: true }).catch(e => console.error("Could not even set failure state:", e));
         }
       } catch (e) {
         console.error("Background task outer error:", e);
@@ -213,7 +220,8 @@ export async function addScene(roomId: string, userId: string, text: string, ind
 
     generateBackgroundImageUrl();
 
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === 'DAILY_LIMIT_EXCEEDED') throw error;
     handleFirestoreError(error, OperationType.WRITE, `rooms/${roomId}/scenes/${sceneId}`);
   }
 }
@@ -221,16 +229,23 @@ export async function addScene(roomId: string, userId: string, text: string, ind
 export async function manualRetryGeneration(roomId: string, sceneId: string): Promise<void> {
   const sceneRef = doc(db, "rooms", roomId, "scenes", sceneId);
   
+  // Check usage for retry too
+  const { allowed } = await checkAndIncrementUsage();
+  if (!allowed) {
+    throw new Error("DAILY_LIMIT_EXCEEDED");
+  }
+
   try {
     // Set to a "ready for retry" state
-    await updateDoc(sceneRef, {
+    await setDoc(sceneRef, {
       isGenerating: true,
       needsRetry: true
-    });
+    }, { merge: true });
     
     // Trigger logic
     await resumeGeneration(roomId, sceneId);
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === 'DAILY_LIMIT_EXCEEDED') throw error;
     handleFirestoreError(error, OperationType.WRITE, `rooms/${roomId}/scenes/${sceneId}`);
   }
 }
@@ -270,28 +285,28 @@ export async function resumeGeneration(roomId: string, sceneId: string): Promise
 
     try {
       const result = await getStoryImage(sceneData.text, stylePrompt, storyContext);
-      await updateDoc(sceneRef, {
+      await setDoc(sceneRef, {
         imageUrl: result.imageUrl,
         imageType: result.type,
         isGenerating: false,
         needsRetry: result.type === 'placeholder'
-      });
+      }, { merge: true });
     } catch (error: any) {
       console.error("AI Generation retry failed:", error);
-      await updateDoc(sceneRef, {
+      await setDoc(sceneRef, {
         isGenerating: false,
         needsRetry: true
-      });
+      }, { merge: true }).catch(e => console.error("Could not even update retry failure state:", e));
       throw error; // Re-throw for UI to show specific toast (e.g. usage limit)
     }
   } catch (e) {
     console.error("Failed to resume generation fatal error:", e);
     // Try one last time to clear the loading state
     try {
-      await updateDoc(sceneRef, {
+      await setDoc(sceneRef, {
         isGenerating: false,
         needsRetry: true
-      });
+      }, { merge: true });
     } catch (innerE) {
       console.error("Could not clear stuck state on fatal error:", innerE);
     }
