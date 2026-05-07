@@ -59,7 +59,10 @@ export function Dashboard({ profile, onEnterRoom }: { profile: UserProfile | nul
         return;
       }
 
-      if (roomData.members.length >= roomData.maxMembers) {
+      const currentMembers = roomData.members || [];
+      const maxMembersLimit = Number(roomData.maxMembers);
+
+      if (currentMembers.length >= maxMembersLimit) {
         alert("방이 가득 찼습니다.");
         return;
       }

@@ -38,7 +38,7 @@ export function RoomModal({
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.9, opacity: 0, y: 20 }}
-        className="glass w-full max-w-sm rounded-[3rem] p-8 relative space-y-6"
+        className="glass w-full max-w-sm rounded-[3rem] p-6 sm:p-8 relative space-y-6 max-h-[90vh] overflow-y-auto"
       >
          <div className="flex items-center justify-between">
             <h3 className="text-2xl font-black tracking-tight">
@@ -59,7 +59,7 @@ export function RoomModal({
                     required
                     value={name} 
                     onChange={e => setName?.(e.target.value)}
-                    className="w-full glass-dark p-5 rounded-[1.5rem] border-transparent focus:bg-white/10 focus:ring-2 focus:ring-brand-key/50 outline-none transition-all placeholder:text-slate-400/50 font-bold text-slate-900"
+                    className="w-full glass-dark px-4 py-4 sm:p-5 rounded-[1.5rem] border-transparent focus:bg-white/10 focus:ring-2 focus:ring-brand-key/50 outline-none transition-all placeholder:text-slate-400/50 font-bold text-slate-900"
                     placeholder="어떤 이야기를 만드나요?"
                   />
                 </div>
@@ -70,7 +70,7 @@ export function RoomModal({
                     required
                     value={time} 
                     onChange={e => setTime?.(e.target.value)}
-                    className="w-full glass-dark p-5 rounded-[1.5rem] border-transparent focus:bg-white/10 focus:ring-2 focus:ring-brand-key/50 outline-none transition-all font-bold text-slate-900"
+                    className="w-full glass-dark px-4 py-4 sm:p-5 rounded-[1.5rem] border-transparent focus:bg-white/10 focus:ring-2 focus:ring-brand-key/50 outline-none transition-all font-bold text-slate-900"
                   />
                 </div>
                 <div className="space-y-2">
@@ -82,7 +82,7 @@ export function RoomModal({
                     required
                     value={maxMembers} 
                     onChange={e => setMaxMembers?.(parseInt(e.target.value))}
-                    className="w-full glass-dark p-5 rounded-[1.5rem] border-transparent focus:bg-white/10 focus:ring-2 focus:ring-brand-key/50 outline-none transition-all font-bold text-slate-900"
+                    className="w-full glass-dark px-4 py-4 sm:p-5 rounded-[1.5rem] border-transparent focus:bg-white/10 focus:ring-2 focus:ring-brand-key/50 outline-none transition-all font-bold text-slate-900"
                   />
                 </div>
               </>
@@ -97,7 +97,7 @@ export function RoomModal({
                     value={joinCode} 
                     onChange={e => setJoinCode?.(e.target.value.toUpperCase())}
                     maxLength={10}
-                    className="w-full glass-dark p-5 pl-14 rounded-[1.5rem] border-transparent focus:bg-white/10 focus:ring-2 focus:ring-brand-key/50 outline-none transition-all placeholder:text-white/20 font-bold uppercase"
+                    className="w-full glass-dark px-4 py-4 sm:p-5 sm:pl-14 pl-12 rounded-[1.5rem] border-transparent focus:bg-white/10 focus:ring-2 focus:ring-brand-key/50 outline-none transition-all placeholder:text-white/20 font-bold uppercase"
                     placeholder="0000000000"
                   />
                 </div>

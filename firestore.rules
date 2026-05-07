@@ -12,7 +12,7 @@ service cloud.firestore {
     }
 
     function isVerified() {
-      return isSignedIn() && request.auth.token.email_verified == true;
+      return isSignedIn();
     }
 
     function isOwner(userId) {
@@ -95,13 +95,22 @@ service cloud.firestore {
         return isVerified() && (request.auth.uid in existing().members);
       }
 
-      allow get: if isVerified() && (isMember() || isAdmin());
+      function isJoinAction() {
+        return incoming().members.hasAll(existing().members) && 
+               incoming().members.size() == existing().members.size() + 1 &&
+               (request.auth.uid in incoming().members) &&
+               incoming().diff(existing()).affectedKeys().hasOnly(['members']) &&
+               existing().members.size() < existing().maxMembers;
+      }
+
+      allow get: if isVerified();
       allow list: if isVerified() && (request.auth.uid in resource.data.members || isAdmin());
 
       allow create: if isVerified() && isValidRoom(incoming()) && isValidId(roomId);
 
       allow update: if isVerified() && (
         isAdmin() ||
+        isJoinAction() ||
         (existing().ownerId == request.auth.uid && isValidRoom(incoming()) &&
          incoming().diff(existing()).affectedKeys().hasAny(['name', 'members', 'maxMembers', 'dailyTime', 'lastActiveDate', 'dailyStyles'])) ||
         (isMember() && incoming().diff(existing()).affectedKeys().hasOnly(['lastActiveDate']))
