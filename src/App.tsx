@@ -96,10 +96,6 @@ export default function App() {
             }} />
           )}
         </main>
-
-        {/* Decorative Blur Blobs */}
-        <div className="fixed top-0 left-0 w-96 h-96 bg-brand-key/10 rounded-full blur-[120px] -translate-x-1/2 -translate-y-1/2 pointer-events-none z-[-1]" />
-        <div className="fixed bottom-0 right-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-[120px] translate-x-1/2 translate-y-1/2 pointer-events-none z-[-1]" />
       </div>
     </ToastProvider>
   );

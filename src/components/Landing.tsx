@@ -24,6 +24,8 @@ export function Landing({ onLogin }: { onLogin: () => Promise<void> }) {
          // Silently ignore or handle if needed
       } else if (isIframe || /KAKAOTALK|LINE|FBAN|FBAV/i.test(navigator.userAgent)) {
         setError("보안 정책으로 인해 로그인이 차단되었습니다. 오른쪽 상단의 '내보내기' 아이콘 또는 '다른 브라우저로 열기'를 선택하여 크롬(Chrome)이나 사파리(Safari)로 접속해주세요.");
+      } else if (err.message?.includes('storage') || err.message?.includes('cookie') || err.code === 'auth/network-request-failed') {
+        setError("시크릿 모드에서는 브라우저 보안 설정으로 인해 로그인이 어려울 수 있습니다. '제3자 쿠키 차단'을 해제하거나, 일반 모드에서 이용해주세요.");
       } else {
         setError("로그인에 실패했습니다. 크롬이나 사파리 브라우저에서 시도해주세요.");
       }
@@ -52,10 +54,9 @@ export function Landing({ onLogin }: { onLogin: () => Promise<void> }) {
         className="relative"
       >
         <div className="w-64 h-64 relative">
-          <div className="absolute blur-3xl animate-pulse" />
           <img 
             src={taleeImg} 
-            className="w-full h-full object-contain relative z-10" 
+            className="w-full h-full object-contain relative z-10 drop-shadow-2xl" 
             alt="Talee Character"
             referrerPolicy="no-referrer"
             loading="eager"

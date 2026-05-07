@@ -3,6 +3,7 @@ import { doc, onSnapshot, collection, query, where, orderBy } from 'firebase/fir
 import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Room, Scene } from '../types';
 import { manualRetryGeneration } from '../services/roomService';
+import { format } from 'date-fns';
 
 export function useRoomData(roomId: string, today: string) {
   const [room, setRoom] = useState<Room | null>(null);
@@ -29,19 +30,22 @@ export function useRoomData(roomId: string, today: string) {
       setScenes(data);
       setLoading(false);
       
-      data.forEach(scene => {
-        const shouldRetry = (scene.imageType === 'placeholder' || scene.needsRetry) && !resumingRef.current.has(scene.id);
-        if (shouldRetry) {
-          resumingRef.current.add(scene.id);
-          setTimeout(() => {
-            manualRetryGeneration(roomId, scene.id).finally(() => {
-              setTimeout(() => {
-                resumingRef.current.delete(scene.id);
-              }, 120000); 
-            });
-          }, 2000);
-        }
-      });
+      // Only retry if it's the current date and we have energy
+      if (today === format(new Date(), 'yyyy-MM-dd')) {
+        data.forEach(scene => {
+          const shouldRetry = (scene.imageType === 'placeholder' || scene.needsRetry) && !resumingRef.current.has(scene.id);
+          if (shouldRetry) {
+            resumingRef.current.add(scene.id);
+            setTimeout(() => {
+              manualRetryGeneration(roomId, scene.id).finally(() => {
+                setTimeout(() => {
+                  resumingRef.current.delete(scene.id);
+                }, 60000 * 5); // 5 min cooldown to avoid spam
+              });
+            }, 3000);
+          }
+        });
+      }
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, `rooms/${roomId}/scenes`);
       setLoading(false);

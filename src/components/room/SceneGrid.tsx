@@ -71,7 +71,7 @@ function SceneCard({ index, scene, isActive, isNext, onClick, onRetry }: SceneCa
             loading={index < 2 ? "eager" : "lazy"}
           />
           {scene.isGenerating && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-white/5 backdrop-blur-[2px]">
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-white/5">
               <div className="relative">
                 <div className="w-8 h-8 border-2 border-brand-key/10 rounded-full" />
                 <div className="absolute top-0 left-0 w-8 h-8 border-2 border-transparent border-t-brand-key rounded-full animate-spin" />

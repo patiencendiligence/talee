@@ -41,7 +41,12 @@ export async function loginWithGoogle(): Promise<UserProfile | null> {
     if (error.code === 'auth/popup-closed-by-user') {
       console.warn("User closed the login popup.");
     } else {
-      console.error("Firebase Login Error:", error);
+      console.error("Firebase Login Error:", {
+        code: error.code,
+        message: error.message,
+        stack: error.stack,
+        browser: navigator.userAgent
+      });
     }
     throw error;
   }

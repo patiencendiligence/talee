@@ -38,11 +38,10 @@ interface RoomCardProps {
 function RoomCard({ room, onClick }: RoomCardProps) {
   return (
     <motion.button
-      whileHover={{ y: -4, scale: 1.01 }}
+      whileHover={{ y: -2, scale: 1.01 }}
       onClick={onClick}
       className="flex items-center justify-between glass card-child text-left group overflow-hidden relative"
     >
-      <div className="absolute top-0 right-0 w-32 h-32 bg-brand-key/5 rounded-full blur-3xl -mr-16 -mt-16" />
       <div className="space-y-3 relative">
         <h4 className="font-black text-2xl text-slate-900 group-hover:text-brand-key transition-colors tracking-tight">{room.name}</h4>
         <div className="flex items-center gap-3 text-xs font-black">
