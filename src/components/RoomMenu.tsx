@@ -19,7 +19,7 @@ export function RoomMenu({
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const copyInvite = () => {
-    const msg = `나랑 꼬리물기 이야기 만들자! 초대코드 ${room.id} 야. ${window.location.origin}`;
+    const msg = `나랑 꼬리물기 이야기 만들자! 초대코드 [ ${room.id} ] 입력하고 들어와. ${window.location.origin}`;
     navigator.clipboard.writeText(msg);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -53,11 +53,11 @@ export function RoomMenu({
         <div className="space-y-4">
           <button 
             onClick={copyInvite}
-            className="w-full glass-light p-5 rounded-[2rem] flex items-center justify-between hover:bg-white/30 transition-all text-left"
+            className="w-full glass-light p-5 rounded-[2rem] flex items-center justify-between hover:bg-white/30 transition-all text-left group"
           >
             <div className="space-y-1">
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Room Code</p>
-              <p className="font-mono font-bold text-brand-key">{room.id.slice(0, 8)}...</p>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">초대 코드</p>
+              <p className="font-mono font-black text-2xl text-brand-key group-active:scale-95 transition-transform">{room.id}</p>
             </div>
             <div className="bg-brand-key text-white px-4 py-2 rounded-xl text-xs font-black shadow-lg">
               {copied ? "COPIED!" : "INVITE"}

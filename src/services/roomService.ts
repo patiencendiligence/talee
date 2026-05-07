@@ -57,8 +57,17 @@ export async function deleteRoom(roomId: string, userId: string): Promise<void> 
 }
 
 
+function generateShortId(length: number = 10): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
 export async function createRoom(userId: string, name: string, dailyTime: string, maxMembers: number = 4): Promise<string> {
-  const roomId = crypto.randomUUID();
+  const roomId = generateShortId();
   const room: Room = {
     id: roomId,
     name,

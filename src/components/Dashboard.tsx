@@ -183,9 +183,10 @@ export function Dashboard({ profile, onEnterRoom }: { profile: UserProfile | nul
                         <input 
                           type="text" 
                           value={joinCode} 
-                          onChange={e => setJoinCode(e.target.value)}
+                          onChange={e => setJoinCode(e.target.value.toUpperCase())}
+                          maxLength={10}
                           className="w-full glass-dark p-5 pl-14 rounded-[1.5rem] border-transparent focus:bg-white/10 focus:ring-2 focus:ring-brand-key/50 outline-none transition-all placeholder:text-white/20 font-bold uppercase"
-                          placeholder="코드 입력"
+                          placeholder="0000000000"
                         />
                       </div>
                     </div>
