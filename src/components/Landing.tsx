@@ -15,9 +15,13 @@ export function Landing({ onLogin }: { onLogin: () => Promise<void> }) {
     } catch (err: any) {
       console.error("Login Error:", err);
       if (err.code === 'auth/popup-blocked') {
-        setError("팝업이 차단되었습니다. 브라우저 설정에서 팝업을 허용하고 다시 시도해주세요.");
+        setError("팝업이 차단되었습니다. 브라우저 설정에서 팝업을 허용해주세요.");
+      } else if (err.code === 'auth/popup-closed-by-user') {
+        setError("로그인 창이 닫혔습니다. 다시 시도해주세요.");
+      } else if (err.code === 'auth/cancelled-popup-request') {
+         // Silently ignore or handle if needed
       } else {
-        setError("로그인에 실패했습니다. 다시 시도해주세요.");
+        setError("로그인에 실패했습니다. (Error: " + (err.message || "Unknown") + ")");
       }
     } finally {
       setLoading(false);

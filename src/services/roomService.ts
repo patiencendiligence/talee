@@ -18,6 +18,7 @@ import { db, auth, handleFirestoreError, OperationType } from "../lib/firebase";
 import { Room, Scene } from "../types";
 import { format } from "date-fns";
 import { getStoryImage, generatePlaceholderImage } from "./imageService";
+import { checkAndIncrementUsage } from './userService';
 import { STORY_STYLES } from "../constants";
 
 

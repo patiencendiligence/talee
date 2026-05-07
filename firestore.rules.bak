@@ -1,0 +1,89 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == "patiencendiligence@gmail.com" ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidId(id) {
+       return id is string && id.size() <= 128;
+    }
+
+    function isRoomMember(roomId) {
+      let room = get(/databases/$(database)/documents/rooms/$(roomId)).data;
+      return isSignedIn() && (request.auth.uid in room.members);
+    }
+
+    // User Profile Rules
+    match /users/{userId} {
+      allow read: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
+    }
+
+    // Room Rules
+    match /rooms/{roomId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn(); 
+      
+      allow create: if isSignedIn();
+                      
+      allow update: if isSignedIn() && (
+        isAdmin() ||
+        (request.auth.uid in resource.data.members) ||
+        (request.auth.uid in request.resource.data.members)
+      );
+
+      allow delete: if isAdmin();
+
+      match /scenes/{sceneId} {
+        allow read: if isSignedIn();
+        
+        allow create: if isSignedIn() && 
+                        (isAdmin() || isRoomMember(roomId)) && 
+                        isValidId(sceneId);
+
+        allow update: if isSignedIn() && (isAdmin() || isRoomMember(roomId));
+                          
+        allow delete: if isAdmin();
+      }
+    }
+
+    // Image Cache
+    match /image_cache/{hash} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && 
+                      request.resource.data.keys().hasAll(['hash', 'imageUrl', 'prompt']) &&
+                      request.resource.data.hash == hash;
+    }
+
+    // Admin Access
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+    }
+
+    // User Usage Limits
+    match /user_usage/{userId} {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId) && 
+                              request.resource.data.keys().hasAll(['dailyCount', 'lastReset']);
+    }
+  }
+}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
-import { db, auth } from '../lib/firebase';
+import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Scene } from '../types';
 import { ArrowLeft, Calendar as CalendarIcon, BookOpen } from 'lucide-react';
 import { format, subDays } from 'date-fns';
@@ -23,7 +23,14 @@ export function ArchiveView({ roomId, onBack }: { roomId: string, onBack: () => 
         where("members", "array-contains", auth.currentUser?.uid),
         orderBy("createdAt", "desc")
       );
-      const snapshot = await getDocs(q);
+      let snapshot;
+      try {
+        snapshot = await getDocs(q);
+      } catch (error) {
+        handleFirestoreError(error, OperationType.LIST, `rooms/${roomId}/scenes`);
+        setLoading(false);
+        return;
+      }
       const allScenes = snapshot.docs.map(d => d.data() as Scene);
       
       const grouped = last30Days.map(date => ({

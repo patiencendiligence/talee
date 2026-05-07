@@ -1,4 +1,4 @@
-import { db, auth } from '../lib/firebase';
+import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { doc, getDoc, setDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
 
 export interface UserUsage {
@@ -19,16 +19,26 @@ export async function checkAndIncrementUsage(): Promise<{ allowed: boolean; rema
   }
 
   const usageRef = doc(db, 'user_usage', user.uid);
-  const usageSnap = await getDoc(usageRef);
+  let usageSnap;
+  try {
+    usageSnap = await getDoc(usageRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.GET, `user_usage/${user.uid}`);
+    throw error;
+  }
 
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
   if (!usageSnap.exists()) {
-    await setDoc(usageRef, {
-      dailyCount: 1,
-      lastReset: today,
-      updatedAt: serverTimestamp()
-    });
+    try {
+      await setDoc(usageRef, {
+        dailyCount: 1,
+        lastReset: today,
+        updatedAt: serverTimestamp()
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `user_usage/${user.uid}`);
+    }
     return { allowed: true, remaining: MAX_DAILY_GENERATIONS - 1 };
   }
 
@@ -36,11 +46,15 @@ export async function checkAndIncrementUsage(): Promise<{ allowed: boolean; rema
   
   if (data.lastReset !== today) {
     // 날짜가 바뀌었으면 초기화
-    await updateDoc(usageRef, {
-      dailyCount: 1,
-      lastReset: today,
-      updatedAt: serverTimestamp()
-    });
+    try {
+      await updateDoc(usageRef, {
+        dailyCount: 1,
+        lastReset: today,
+        updatedAt: serverTimestamp()
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `user_usage/${user.uid}`);
+    }
     return { allowed: true, remaining: MAX_DAILY_GENERATIONS - 1 };
   }
 
@@ -49,10 +63,14 @@ export async function checkAndIncrementUsage(): Promise<{ allowed: boolean; rema
   }
 
   // 횟수 증가
-  await updateDoc(usageRef, {
-    dailyCount: increment(1),
-    updatedAt: serverTimestamp()
-  });
+  try {
+    await updateDoc(usageRef, {
+      dailyCount: increment(1),
+      updatedAt: serverTimestamp()
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `user_usage/${user.uid}`);
+  }
 
   return { allowed: true, remaining: MAX_DAILY_GENERATIONS - (data.dailyCount + 1) };
 }
@@ -62,7 +80,13 @@ export async function getRemainingUsage(): Promise<number> {
   if (!user) return 0;
 
   const usageRef = doc(db, 'user_usage', user.uid);
-  const usageSnap = await getDoc(usageRef);
+  let usageSnap;
+  try {
+    usageSnap = await getDoc(usageRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.GET, `user_usage/${user.uid}`);
+    return 0;
+  }
 
   if (!usageSnap.exists()) return MAX_DAILY_GENERATIONS;
 

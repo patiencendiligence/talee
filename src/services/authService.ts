@@ -5,33 +5,46 @@ import { UserProfile } from '../types';
 
 export async function loginWithGoogle(): Promise<UserProfile | null> {
   const provider = new GoogleAuthProvider();
-  const result = await signInWithPopup(auth, provider);
-  const user = result.user;
-
-  const userRef = doc(db, "users", user.uid);
-  let userSnap;
+  provider.setCustomParameters({ prompt: 'select_account' });
+  
   try {
-    userSnap = await getDoc(userRef);
-  } catch (error) {
-    handleFirestoreError(error, OperationType.GET, "users/" + user.uid);
-    return null;
-  }
+    const result = await signInWithPopup(auth, provider);
+    const user = result.user;
 
-  if (!userSnap.exists()) {
-    const newUser: UserProfile = {
-      uid: user.uid,
-      nickname: user.displayName || "익명",
-      roomIds: []
-    };
+    const userRef = doc(db, "users", user.uid);
+    let userSnap;
     try {
-      await setDoc(userRef, newUser);
+      userSnap = await getDoc(userRef);
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, "users/" + user.uid);
+      console.error("Error fetching user profile:", error);
+      handleFirestoreError(error, OperationType.GET, "users/" + user.uid);
+      return null;
     }
-    return newUser;
-  }
 
-  return userSnap.data() as UserProfile;
+    if (!userSnap.exists()) {
+      const newUser: UserProfile = {
+        uid: user.uid,
+        nickname: user.displayName || "익명",
+        roomIds: []
+      };
+      try {
+        await setDoc(userRef, newUser);
+      } catch (error) {
+        console.error("Error creating user profile:", error);
+        handleFirestoreError(error, OperationType.WRITE, "users/" + user.uid);
+      }
+      return newUser;
+    }
+
+    return userSnap.data() as UserProfile;
+  } catch (error: any) {
+    if (error.code === 'auth/popup-closed-by-user') {
+      console.warn("User closed the login popup.");
+    } else {
+      console.error("Firebase Login Error:", error);
+    }
+    throw error;
+  }
 }
 
 export function subscribeToAuth(callback: (user: any) => void) {

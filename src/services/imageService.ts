@@ -2,15 +2,23 @@ import { GoogleGenAI } from "@google/genai";
 import { OpenAI } from "openai";
 import { generatePlaceholderImage } from "../utils/imageGenerator";
 export { generatePlaceholderImage };
-import { db, auth } from "../lib/firebase";
+import { db, auth, handleFirestoreError, OperationType } from "../lib/firebase";
 import { collection, query, where, getDocs, getDoc, setDoc, doc } from "firebase/firestore";
 import { hashText } from "../lib/utils";
 import { compressImage, uploadImage, generateImageHash } from "../utils/imageUtils";
 
 // Initialize Gemini with GoogleGenAI as per modern SDK guidelines
-const ai = new GoogleGenAI({ 
-  apiKey: process.env.GEMINI_API_KEY 
-});
+const getGeminiKey = () => {
+  const key = (import.meta as any).env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+  if (!key || key === "undefined") {
+    console.error("Gemini API Key is missing. Please set VITE_GEMINI_API_KEY in your .env file.");
+    return "";
+  }
+  return key;
+};
+
+const geminiKey = getGeminiKey();
+const ai = geminiKey ? new GoogleGenAI({ apiKey: geminiKey }) : null;
 
 const openai = new OpenAI({
   apiKey: (import.meta as any).env.VITE_OPENAI_API,
@@ -31,15 +39,19 @@ async function base64ToBlob(base64: string, mimeType: string): Promise<Blob> {
 }
 
 async function translateToEnglish(text: string): Promise<string> {
+  if (!ai) {
+    console.warn("Gemini AI not initialized, skipping translation");
+    return text;
+  }
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: `Translate this scene description to English for an image generation prompt. Output ONLY the translated text: "${text}"`,
-      config: {
+    const model = (ai as any).getGenerativeModel({ model: "gemini-2.0-flash" });
+    const response = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: `Translate this scene description to English for an image generation prompt. Output ONLY the translated text: "${text}"` }] }],
+      generationConfig: {
         temperature: 0.1,
       }
     });
-    return response.text?.trim() || text;
+    return response.response.text()?.trim() || text;
   } catch (e) {
     console.warn("Translation failed, using original text:", e);
     return text;
@@ -93,8 +105,9 @@ async function processAndCacheImage(rawBlob: Blob, hash: string, prompt: string,
       type,
       createdAt: new Date().toISOString()
     });
-  } catch (e) {
-    console.warn("Failed to cache image in Firestore (likely too large or permissions):", e);
+  } catch (error) {
+    console.warn("Failed to cache image in Firestore (likely too large or permissions):", error);
+    handleFirestoreError(error, OperationType.WRITE, `image_cache/${hash}`);
   }
 
   return imageUrl;
@@ -119,6 +132,7 @@ export async function getStoryImage(text: string, stylePrompt: string, context?:
     }
   } catch (error) {
     console.warn("[ImageService] Cache check failed:", error);
+    handleFirestoreError(error, OperationType.GET, `image_cache/${hash}`);
   }
 
   // 1. Add a small random stagger to prevent simultaneous requests from hitting the same rate limit
@@ -130,43 +144,39 @@ export async function getStoryImage(text: string, stylePrompt: string, context?:
   const englishContext = context ? await translateToEnglish(context) : '';
 
   // Tier 1: Gemini AI (General Image Generation)
-  try {
-    console.log("[ImageService] Tier 1: Gemini...");
-    const systemPrompt = `You are a professional storybook illustrator. Create a beautiful illustration for this scene: "${englishText}". Style: ${stylePrompt}. Context: ${englishContext}. NO TEXT in image. High quality, whimsical art.`;
-    
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-image",
-      contents: {
-        parts: [{ text: systemPrompt }]
-      },
-      config: {
-        imageConfig: {
-          aspectRatio: "1:1"
+  if (ai) {
+    try {
+      console.log("[ImageService] Tier 1: Gemini...");
+      const systemPrompt = `You are a professional storybook illustrator. Create a beautiful illustration for this scene: "${englishText}". Style: ${stylePrompt}. Context: ${englishContext}. NO TEXT in image. High quality, whimsical art.`;
+      
+      const model = (ai as any).getGenerativeModel({ model: "gemini-2.0-flash" });
+      const response = await model.generateContent({
+        contents: [{ role: "user", parts: [{ text: systemPrompt }] }],
+      });
+
+      let rawBlob: Blob | null = null;
+      const candidates = response.response.candidates;
+      if (candidates?.[0]?.content?.parts) {
+        for (const part of candidates[0].content.parts) {
+          if (part.inlineData) {
+            rawBlob = await base64ToBlob(part.inlineData.data, part.inlineData.mimeType || 'image/png');
+            break;
+          }
         }
       }
-    });
 
-    let rawBlob: Blob | null = null;
-    if (response.candidates?.[0]?.content?.parts) {
-      for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData) {
-          rawBlob = await base64ToBlob(part.inlineData.data, part.inlineData.mimeType || 'image/png');
-          break;
-        }
+      if (rawBlob) {
+        const imageUrl = await processAndCacheImage(rawBlob, hash, text, 'ai');
+        return { imageUrl, type: 'ai' };
       }
-    }
-
-    if (rawBlob) {
-      const imageUrl = await processAndCacheImage(rawBlob, hash, text, 'ai');
-      return { imageUrl, type: 'ai' };
-    }
-  } catch (error: any) {
-    const errorMsg = error.message || String(error);
-    console.warn("[ImageService] Gemini failed:", errorMsg);
-    
-    // Explicitly log quota issues
-    if (errorMsg.includes("quota") || errorMsg.includes("429")) {
-       console.log("[ImageService] Gemini Quota Exceeded. Priority fallback to Pollinations enabled.");
+    } catch (error: any) {
+      const errorMsg = error.message || String(error);
+      console.warn("[ImageService] Gemini failed:", errorMsg);
+      
+      // Explicitly log quota issues
+      if (errorMsg.includes("quota") || errorMsg.includes("429")) {
+         console.log("[ImageService] Gemini Quota Exceeded. Priority fallback to Pollinations enabled.");
+      }
     }
   }
 
@@ -248,8 +258,9 @@ export async function getStoryImage(text: string, stylePrompt: string, context?:
       type: 'placeholder',
       createdAt: new Date().toISOString()
     });
-  } catch (e) {
-    console.warn("[ImageService] Failed to cache placeholder:", e);
+  } catch (error) {
+    console.warn("[ImageService] Failed to cache placeholder:", error);
+    handleFirestoreError(error, OperationType.WRITE, `image_cache/${hash}`);
   }
 
   return { imageUrl, type: 'placeholder' };

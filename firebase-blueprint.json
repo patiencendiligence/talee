@@ -51,6 +51,26 @@
         "prompt": { "type": "string" }
       },
       "required": ["hash", "imageUrl", "prompt"]
+    },
+    "UserUsage": {
+      "title": "User Usage",
+      "description": "Daily usage limit for AI generation",
+      "type": "object",
+      "properties": {
+        "dailyCount": { "type": "integer" },
+        "lastReset": { "type": "string", "description": "YYYY-MM-DD" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["dailyCount", "lastReset", "updatedAt"]
+    },
+    "Admin": {
+      "title": "Admin",
+      "description": "Admin users",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" }
+      },
+      "required": ["uid"]
     }
   },
   "firestore": {
@@ -69,6 +89,14 @@
     "/image_cache/{hash}": {
       "schema": "ImageCache",
       "description": "Global image cache"
+    },
+    "/user_usage/{userId}": {
+      "schema": "UserUsage",
+      "description": "User daily usage tracking"
+    },
+    "/admins/{adminId}": {
+      "schema": "Admin",
+      "description": "Administrators"
     }
   }
 }
