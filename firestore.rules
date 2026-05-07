@@ -53,23 +53,29 @@ service cloud.firestore {
              data.members is list && data.members.size() <= 10 &&
              data.maxMembers is number && data.maxMembers >= 1 && data.maxMembers <= 10 &&
              data.dailyTime is string && data.dailyTime.matches('^[0-9]{2}:[0-9]{2}$') &&
-             (data.get('lastActiveDate', '') is string);
+             (data.get('lastActiveDate', '') is string) &&
+             (data.get('dailyStyles', {}) is map);
     }
 
     function isValidScene(data) {
-      return data.roomId is string && exists(/databases/$(database)/documents/rooms/$(data.roomId)) &&
+      return data.id is string &&
+             data.roomId is string && 
              data.date is string && data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') &&
              data.index is number && data.index >= 0 && data.index <= 9 &&
              data.text is string && data.text.size() <= 2000 &&
              (data.get('imageUrl', null) == null || data.imageUrl is string) &&
+             (data.get('imageType', '') is string) &&
+             (data.get('isGenerating', false) is bool) &&
+             (data.get('needsRetry', false) is bool) &&
              data.createdBy is string && data.createdBy == request.auth.uid &&
-             data.createdAt is timestamp;
+             (data.get('members', []) is list) &&
+             (data.createdAt is timestamp || data.createdAt == null);
     }
 
     function isValidUserUsage(data) {
       return data.dailyCount is number && data.dailyCount >= 0 &&
              data.lastReset is string && data.lastReset.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') &&
-             data.updatedAt is timestamp;
+             (data.updatedAt is timestamp || data.updatedAt == null);
     }
 
     // --- Collection Rules ---
@@ -79,8 +85,7 @@ service cloud.firestore {
       allow list: if isAdmin();
       
       allow create: if isOwner(userId) && isValidUser(incoming()) && 
-                       incoming().keys().hasAll(['uid', 'nickname', 'roomIds']) &&
-                       incoming().keys().size() == 3;
+                       incoming().keys().hasAll(['uid', 'nickname', 'roomIds']);
       
       allow update: if isOwner(userId) && isValidUser(incoming()) && (
         incoming().diff(existing()).affectedKeys().hasOnly(['nickname', 'roomIds'])
@@ -95,31 +100,31 @@ service cloud.firestore {
       allow get: if isVerified() && (isMember() || isAdmin());
       allow list: if isVerified() && (request.auth.uid in resource.data.members || isAdmin());
 
-      allow create: if isVerified() && isValidRoom(incoming()) && isValidId(roomId) &&
-                       incoming().keys().hasAll(['id', 'name', 'ownerId', 'members', 'maxMembers', 'dailyTime']) &&
-                       incoming().keys().size() >= 6; // lastActiveDate is optional
+      allow create: if isVerified() && isValidRoom(incoming()) && isValidId(roomId);
 
       allow update: if isVerified() && (
         isAdmin() ||
         (existing().ownerId == request.auth.uid && isValidRoom(incoming()) &&
-         incoming().diff(existing()).affectedKeys().hasAny(['name', 'members', 'maxMembers', 'dailyTime', 'lastActiveDate'])) ||
+         incoming().diff(existing()).affectedKeys().hasAny(['name', 'members', 'maxMembers', 'dailyTime', 'lastActiveDate', 'dailyStyles'])) ||
         (isMember() && incoming().diff(existing()).affectedKeys().hasOnly(['lastActiveDate']))
       );
 
       allow delete: if isVerified() && (existing().ownerId == request.auth.uid || isAdmin());
 
       match /scenes/{sceneId} {
-        allow get: if isVerified() && (isMember() || isAdmin());
-        allow list: if isVerified() && (isMember() || isAdmin());
+        function isRoomMember() {
+          return isVerified() && (request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.members);
+        }
 
-        allow create: if isVerified() && isValidScene(incoming()) && isValidId(sceneId) &&
-                         (exists(/databases/$(database)/documents/rooms/$(roomId)) && 
-                          request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.members);
+        allow get: if isVerified() && (isRoomMember() || isAdmin());
+        allow list: if isVerified() && (isRoomMember() || isAdmin());
+
+        allow create: if isVerified() && isValidScene(incoming()) && isValidId(sceneId) && isRoomMember();
 
         allow update: if isVerified() && (
           isAdmin() ||
-          (incoming().createdBy == existing().createdBy && isValidScene(incoming()) &&
-           incoming().diff(existing()).affectedKeys().hasAny(['text', 'imageUrl']))
+          (isRoomMember() && isValidScene(incoming()) &&
+           incoming().diff(existing()).affectedKeys().hasAny(['text', 'imageUrl', 'imageType', 'isGenerating', 'needsRetry']))
         );
 
         allow delete: if isVerified() && (existing().createdBy == request.auth.uid || isAdmin());
@@ -130,13 +135,11 @@ service cloud.firestore {
       allow get: if isOwner(userId) || isAdmin();
       
       allow create: if isOwner(userId) && isValidUserUsage(incoming()) &&
-                       incoming().dailyCount == 1 &&
-                       incoming().updatedAt == request.time;
+                       incoming().dailyCount == 1;
 
       allow update: if isOwner(userId) && isValidUserUsage(incoming()) && (
         // Action: Increment or Reset
         (incoming().dailyCount == existing().dailyCount + 1 || incoming().dailyCount == 1) &&
-        incoming().updatedAt == request.time &&
         incoming().diff(existing()).affectedKeys().hasAny(['dailyCount', 'lastReset', 'updatedAt'])
       );
     }
@@ -145,8 +148,7 @@ service cloud.firestore {
       allow read: if isVerified();
       allow create: if isVerified() && 
                        incoming().hash == hash &&
-                       incoming().keys().hasAll(['hash', 'imageUrl', 'prompt']) &&
-                       incoming().keys().size() == 3;
+                       incoming().keys().hasAll(['hash', 'imageUrl', 'prompt']);
     }
 
     match /admins/{adminId} {
