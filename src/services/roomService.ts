@@ -136,7 +136,23 @@ export async function addScene(roomId: string, userId: string, text: string, ind
       const needsStyleUpdate = todayStyle === undefined;
       
       if (needsStyleUpdate) {
-        todayStyle = Math.floor(Math.random() * STORY_STYLES.length);
+        // Find previous styles to avoid repetition if possible
+        let lastStyle = -1;
+        if (roomData.dailyStyles) {
+          const sortedDates = Object.keys(roomData.dailyStyles).sort((a, b) => b.localeCompare(a));
+          if (sortedDates.length > 0) {
+            lastStyle = roomData.dailyStyles[sortedDates[0]];
+          }
+        }
+
+        let newStyle = Math.floor(Math.random() * STORY_STYLES.length);
+        // Try up to 5 times to get a different style than the last one if we have options
+        if (STORY_STYLES.length > 1) {
+          for (let i = 0; i < 5 && newStyle === lastStyle; i++) {
+            newStyle = Math.floor(Math.random() * STORY_STYLES.length);
+          }
+        }
+        todayStyle = newStyle;
       }
 
       const [targetH, targetM] = roomData.dailyTime.split(':').map(Number);
@@ -290,7 +306,7 @@ export async function resumeGeneration(roomId: string, sceneId: string): Promise
       ? "Previous events: " + previousScenes.map(s => s.text).join(". ")
       : "Initial scene of the story.";
 
-    const dailyStyle = roomData.dailyStyles?.[sceneData.date] ?? 0;
+    const dailyStyle = roomData.dailyStyles?.[sceneData.date] ?? (sceneData.date.length % STORY_STYLES.length);
     const stylePrompt = STORY_STYLES[dailyStyle].prompt;
 
     try {

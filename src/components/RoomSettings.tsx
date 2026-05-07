@@ -99,7 +99,7 @@ export function RoomSettings({ room, onClose }: RoomSettingsProps) {
                 type="time"
                 value={dailyTime}
                 onChange={(e) => setDailyTime(e.target.value)}
-                className="w-full px-4 py-4 sm:px-6 sm:py-4 glass-dark rounded-2xl border-transparent focus:ring-4 focus:ring-brand-key/20 outline-none transition-all font-bold text-lg text-slate-900"
+                className="w-full px-4 py-4 sm:px-6 sm:py-4 glass-dark rounded-2xl border-transparent focus:ring-4 focus:ring-brand-key/20 outline-none transition-all font-bold text-lg text-slate-900 min-w-0"
               />
             </div>
           </div>

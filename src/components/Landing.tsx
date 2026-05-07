@@ -14,14 +14,18 @@ export function Landing({ onLogin }: { onLogin: () => Promise<void> }) {
       await onLogin();
     } catch (err: any) {
       console.error("Login Error:", err);
+      const isIframe = window.self !== window.top;
+      
       if (err.code === 'auth/popup-blocked') {
         setError("팝업이 차단되었습니다. 브라우저 설정에서 팝업을 허용해주세요.");
       } else if (err.code === 'auth/popup-closed-by-user') {
         setError("로그인 창이 닫혔습니다. 다시 시도해주세요.");
       } else if (err.code === 'auth/cancelled-popup-request') {
          // Silently ignore or handle if needed
+      } else if (isIframe || /KAKAOTALK|LINE|FBAN|FBAV/i.test(navigator.userAgent)) {
+        setError("보안 정책으로 인해 로그인이 차단되었습니다. 오른쪽 상단의 '내보내기' 아이콘 또는 '다른 브라우저로 열기'를 선택하여 크롬(Chrome)이나 사파리(Safari)로 접속해주세요.");
       } else {
-        setError("로그인에 실패했습니다. (Error: " + (err.message || "Unknown") + ")");
+        setError("로그인에 실패했습니다. 크롬이나 사파리 브라우저에서 시도해주세요.");
       }
     } finally {
       setLoading(false);

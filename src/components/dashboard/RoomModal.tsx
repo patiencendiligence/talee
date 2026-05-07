@@ -70,20 +70,18 @@ export function RoomModal({
                     required
                     value={time} 
                     onChange={e => setTime?.(e.target.value)}
-                    className="w-full glass-dark px-4 py-4 sm:p-5 rounded-[1.5rem] border-transparent focus:bg-white/10 focus:ring-2 focus:ring-brand-key/50 outline-none transition-all font-bold text-slate-900"
+                    className="w-full glass-dark px-4 py-4 sm:p-5 rounded-[1.5rem] border-transparent focus:bg-white/10 focus:ring-2 focus:ring-brand-key/50 outline-none transition-all font-bold text-slate-900 min-w-0"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-4">최대 인원 (최대 4명)</label>
-                  <input 
-                    type="number" 
-                    min={1}
-                    max={4}
-                    required
+                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-4">최대 인원</label>
+                  <select 
                     value={maxMembers} 
                     onChange={e => setMaxMembers?.(parseInt(e.target.value))}
-                    className="w-full glass-dark px-4 py-4 sm:p-5 rounded-[1.5rem] border-transparent focus:bg-white/10 focus:ring-2 focus:ring-brand-key/50 outline-none transition-all font-bold text-slate-900"
-                  />
+                    className="w-full glass-dark px-4 py-4 sm:p-5 rounded-[1.5rem] border-transparent focus:bg-white/10 focus:ring-2 focus:ring-brand-key/50 outline-none transition-all font-bold text-slate-900 appearance-none bg-no-repeat bg-right"
+                  >
+                    {[2, 3, 4].map(n => <option key={n} value={n}>{n}명</option>)}
+                  </select>
                 </div>
               </>
             ) : (

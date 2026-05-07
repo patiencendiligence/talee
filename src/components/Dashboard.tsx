@@ -60,10 +60,10 @@ export function Dashboard({ profile, onEnterRoom }: { profile: UserProfile | nul
       }
 
       const currentMembers = roomData.members || [];
-      const maxMembersLimit = Number(roomData.maxMembers);
+      const maxMembersLimit = parseInt(String(roomData.maxMembers)) || 4;
 
       if (currentMembers.length >= maxMembersLimit) {
-        alert("방이 가득 찼습니다.");
+        alert(`방이 가득 찼습니다. (현재: ${currentMembers.length} / 최대: ${maxMembersLimit})`);
         return;
       }
 
