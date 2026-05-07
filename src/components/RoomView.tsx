@@ -8,7 +8,7 @@ import { RoomMenu } from './RoomMenu';
 import { RoomSettings } from './RoomSettings';
 import { addScene, deleteRoom, resumeGeneration, manualRetryGeneration } from '../services/roomService';
 import { moderateText } from '../lib/utils';
-import { compressImage, uploadImage, generateImageHash } from '../utils/imageUtils';
+import { compressImage, uploadImage } from '../utils/imageUtils';
 import { format, addHours, isWithinInterval } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
 import { useToast } from './Toast';
@@ -202,17 +202,13 @@ export function RoomView({ roomId, onBack, onOpenArchive }: { roomId: string, on
     setIsUploading(true);
     setError('');
     try {
-      // 1. Compress
-      const compressedBlob = await compressImage(file, 0.7, 1024);
+      // 1. Compress (Stricter for Base64/Firestore)
+      const compressedBlob = await compressImage(file, 0.6, 800);
       
-      // 2. Hash for filename
-      const contentHash = await generateImageHash(compressedBlob);
-      const storagePath = `manual/${auth.currentUser!.uid}/${contentHash}.jpg`;
+      // 2. Convert to Base64
+      const imageUrl = await uploadImage(compressedBlob, "manual");
       
-      // 3. Upload
-      const imageUrl = await uploadImage(compressedBlob, storagePath);
-      
-      // 4. Submit scene with pre-uploaded URL
+      // 3. Submit scene
       await handleSubmit(imageUrl);
     } catch (err: any) {
       setError(err.message || "이미지 업로드 실패");

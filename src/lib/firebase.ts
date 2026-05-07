@@ -1,7 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
 const firebaseConfig = {
   "projectId": (import.meta as any).env.VITE_FIREBASE_PROJECT_ID,
   "appId": (import.meta as any).env.VITE_FIREBASE_APP_ID,
@@ -20,7 +19,6 @@ if (!firebaseConfig.apiKey || firebaseConfig.apiKey === "undefined") {
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
-export const storage = getStorage(app);
 export const auth = getAuth();
 
 export enum OperationType {

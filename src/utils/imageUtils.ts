@@ -1,7 +1,4 @@
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "../lib/firebase";
-
-export const compressImage = (file: File | Blob, quality = 0.7, maxWidth = 1024): Promise<Blob> => {
+export const compressImage = (file: File | Blob, quality = 0.6, maxWidth = 800): Promise<Blob> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
     
@@ -56,23 +53,21 @@ export const compressImage = (file: File | Blob, quality = 0.7, maxWidth = 1024)
   });
 };
 
-export const uploadImage = async (blob: Blob, path: string): Promise<string> => {
-  try {
-    const storageRef = ref(storage, path);
-
-    // Upload
-    await uploadBytes(storageRef, blob, {
-      contentType: "image/jpeg",
-    });
-
-    // Get URL
-    const downloadURL = await getDownloadURL(storageRef);
-
-    return downloadURL;
-  } catch (error) {
-    console.error("업로드 실패:", error);
-    throw error;
-  }
+export const uploadImage = async (blob: Blob, _path: string): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result as string;
+      // Safety check: Firestore document limit is 1MB. Base64 is ~33% larger than binary.
+      // 1,000,000 / 1.33 = ~750,000 bytes raw. 800-900KB is a safe threshold for the string length.
+      if (result.length > 950000) {
+        console.warn("Base64 string is very large (>950KB) and may fail to save to Firestore.");
+      }
+      resolve(result);
+    };
+    reader.onerror = () => reject("Base64 변환 실패");
+    reader.readAsDataURL(blob);
+  });
 };
 
 export const generateImageHash = async (blob: Blob): Promise<string> => {

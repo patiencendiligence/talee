@@ -5,7 +5,7 @@ export { generatePlaceholderImage };
 import { db, auth, handleFirestoreError, OperationType } from "../lib/firebase";
 import { collection, query, where, getDocs, getDoc, setDoc, doc } from "firebase/firestore";
 import { hashText } from "../lib/utils";
-import { compressImage, uploadImage, generateImageHash } from "../utils/imageUtils";
+import { compressImage, uploadImage } from "../utils/imageUtils";
 
 // Initialize Gemini with GoogleGenAI as per modern SDK guidelines
 const getGeminiKey = () => {
@@ -60,46 +60,22 @@ async function translateToEnglish(text: string): Promise<string> {
 
 async function processAndCacheImage(rawBlob: Blob, hash: string, prompt: string, type: string): Promise<string> {
   // 1. Process Image
-  // Use lower resolution for base64 fallback to ensure it fits in Firestore (1MB limit)
+  // Use lower resolution for base64 to ensure it fits in Firestore (1MB limit)
   const isFallback = type === 'placeholder' || type === 'pollinations';
   const quality = isFallback ? 0.5 : 0.6;
-  const maxWidth = (type === 'openai' || type === 'ai') ? 1024 : 800;
+  const maxWidth = 800;
   
   const compressedBlob = await compressImage(rawBlob, quality, maxWidth);
   
-  // 2. Generate path based on content hash (deduplication)
-  const imageContentHash = await generateImageHash(compressedBlob);
-  const userId = auth.currentUser?.uid || 'anonymous';
-  const storagePath = `generated/${imageContentHash}.jpg`;
+  // 2. Convert to Base64 (formerly uploadImage)
+  const imageUrl = await uploadImage(compressedBlob, "unused_path");
 
-  let imageUrl: string;
+  // 3. Cache the result in Firestore
   try {
-    // 3. Upload to Firebase Storage
-    imageUrl = await uploadImage(compressedBlob, storagePath);
-  } catch (error) {
-    console.warn("Storage upload failed. Using base64 fallback.", error);
-    // FALLBACK: Use Data URL (base64)
-    imageUrl = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        // Check if base64 is way too big (rare after compression but safe)
-        if (result.length > 900000) {
-           console.warn("Base64 still too large for Firestore, it might fail to cache.");
-        }
-        resolve(result);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(compressedBlob);
-    });
-  }
-
-  // 4. Cache the result in Firestore
-  try {
+    const userId = auth.currentUser?.uid || 'anonymous';
     await setDoc(doc(db, "image_cache", hash), {
       hash,
       imageUrl,
-      contentHash: imageContentHash,
       prompt,
       userId,
       type,
