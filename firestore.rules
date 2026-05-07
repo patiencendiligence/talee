@@ -122,21 +122,26 @@ service cloud.firestore {
       allow delete: if isVerified() && (existing().ownerId == request.auth.uid || isAdmin());
 
       match /scenes/{sceneId} {
-        function isRoomMember() {
-          return isVerified() && (request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.members);
+        function isSceneMember() {
+          return isVerified() && (request.auth.uid in resource.data.members);
         }
 
-        allow get: if isVerified() && (isRoomMember() || isAdmin());
-        allow list: if isVerified() && (isRoomMember() || isAdmin());
+        function isTargetSceneMember() {
+          return isVerified() && (request.auth.uid in incoming().members);
+        }
+
+        allow get: if isVerified() && (isSceneMember() || isAdmin());
+        allow list: if isVerified() && (isSceneMember() || isAdmin());
 
         allow create: if isVerified() && isValidScene(incoming()) && 
                          incoming().createdBy == request.auth.uid && 
-                         isValidId(sceneId) && isRoomMember();
+                         isValidId(sceneId) && isTargetSceneMember();
 
         allow update: if isVerified() && (
           isAdmin() ||
-          (isRoomMember() && isValidScene(incoming()) && 
+          (isSceneMember() && isValidScene(incoming()) && 
            incoming().createdBy == existing().createdBy && // creator is immutable
+           incoming().members == existing().members && // members list should be immutable via scene update
            (
              // Action 1: Creator updating their own text/meta
              (existing().createdBy == request.auth.uid && 

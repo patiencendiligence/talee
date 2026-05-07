@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, enableMultiTabIndexedDbPersistence } from 'firebase/firestore';
 const firebaseConfig = {
   "projectId": (import.meta as any).env.VITE_FIREBASE_PROJECT_ID,
   "appId": (import.meta as any).env.VITE_FIREBASE_APP_ID,
@@ -19,6 +19,20 @@ if (!firebaseConfig.apiKey || firebaseConfig.apiKey === "undefined") {
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+
+// Enable persistence for local caching
+if (typeof window !== 'undefined') {
+  enableMultiTabIndexedDbPersistence(db).catch((err) => {
+    if (err.code === 'failed-precondition') {
+      // Multiple tabs open, persistence can only be enabled in one tab at a time.
+      console.warn('Firestore persistence failed-precondition (multiple tabs)');
+    } else if (err.code === 'unimplemented') {
+      // The current browser does not support all of the features required to enable persistence
+      console.warn('Firestore persistence unimplemented in this browser');
+    }
+  });
+}
+
 export const auth = getAuth();
 
 export enum OperationType {
