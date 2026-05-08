@@ -132,7 +132,7 @@ service cloud.firestore {
         }
 
         allow get: if isVerified() && (isSceneMember() || isRoomMember() || isAdmin());
-        allow list: if isVerified() && (isSceneMember() || isAdmin());
+        allow list: if isVerified() && (isSceneMember() || isRoomMember() || isAdmin());
 
         allow create: if isVerified() && (isAdmin() || (
                          isValidScene(incoming()) && 

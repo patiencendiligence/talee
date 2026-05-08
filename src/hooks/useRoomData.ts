@@ -21,7 +21,6 @@ export function useRoomData(roomId: string, today: string) {
     const q = query(
       collection(db, "rooms", roomId, "scenes"),
       where("date", "==", today),
-      where("members", "array-contains", auth.currentUser?.uid),
       orderBy("index", "asc")
     );
 

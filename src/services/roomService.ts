@@ -30,7 +30,7 @@ export async function deleteRoom(roomId: string, userId: string): Promise<void> 
 
     // 1. Delete all scenes in the room (subcollection)
     const scenesRef = collection(db, "rooms", roomId, "scenes");
-    const q = query(scenesRef, where("members", "array-contains", userId));
+    const q = query(scenesRef);
     const scenesSnap = await getDocs(q);
     const batch = writeBatch(db);
     scenesSnap.forEach((sceneDoc) => {
@@ -208,7 +208,6 @@ export async function addScene(roomId: string, userId: string, text: string, ind
         const q = query(
           scenesRef, 
           where("date", "==", dateStr), 
-          where("members", "array-contains", userId),
           orderBy("index", "asc")
         );
         const snapshot = await getDocs(q);
@@ -307,7 +306,6 @@ export async function resumeGeneration(roomId: string, sceneId: string): Promise
     const q = query(
       scenesRef, 
       where("date", "==", sceneData.date), 
-      where("members", "array-contains", auth.currentUser?.uid),
       orderBy("index", "asc")
     );
     const snapshot = await getDocs(q);
@@ -358,7 +356,6 @@ export async function getDailyScenes(roomId: string, date: string): Promise<Scen
   const q = query(
     scenesRef, 
     where("date", "==", date), 
-    where("members", "array-contains", auth.currentUser?.uid),
     orderBy("index", "asc")
   );
   try {
