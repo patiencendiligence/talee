@@ -73,7 +73,8 @@ export function Dashboard({ profile, onEnterRoom }: { profile: UserProfile | nul
       }
 
       await updateDoc(roomRef, {
-        members: arrayUnion(profile.uid)
+        members: arrayUnion(profile.uid),
+        lastActiveDate: new Date().toISOString().split('T')[0]
       });
       await updateDoc(doc(db, "users", profile.uid), {
         roomIds: arrayUnion(joinCode)

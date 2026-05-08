@@ -9,6 +9,12 @@ interface RoomListProps {
 }
 
 export function RoomList({ rooms, onEnterRoom }: RoomListProps) {
+  const sortedRooms = [...rooms].sort((a, b) => {
+    const dateA = a.lastActiveDate || '';
+    const dateB = b.lastActiveDate || '';
+    return dateB.localeCompare(dateA);
+  });
+
   return (
     <div className="space-y-4">
       <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] ml-2">참여 중인 책장</h3>
@@ -20,7 +26,7 @@ export function RoomList({ rooms, onEnterRoom }: RoomListProps) {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4">
-          {rooms.map(room => (
+          {sortedRooms.map(room => (
             <RoomCard key={room.id} room={room} onClick={() => onEnterRoom(room.id)} />
           ))}
         </div>

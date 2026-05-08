@@ -17,7 +17,6 @@ export function useRooms(userId: string | undefined) {
     const q = query(
       collection(db, "rooms"), 
       where("members", "array-contains", userId),
-      orderBy("lastActiveDate", "desc"),
       limit(24)
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {

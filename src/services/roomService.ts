@@ -76,6 +76,7 @@ export async function createRoom(userId: string, name: string, dailyTime: string
     members: [userId],
     maxMembers,
     dailyTime,
+    lastActiveDate: new Date().toISOString().split('T')[0],
   };
 
   try {
@@ -186,10 +187,11 @@ export async function addScene(roomId: string, userId: string, text: string, ind
       };
 
       // ALL WRITES AT THE BOTTOM
+      const roomUpdates: any = { lastActiveDate: dateStr };
       if (needsStyleUpdate) {
-        const newDailyStyles = { ...(roomData.dailyStyles || {}), [dateStr]: todayStyle };
-        transaction.update(roomRef, { dailyStyles: newDailyStyles });
+        roomUpdates.dailyStyles = { ...(roomData.dailyStyles || {}), [dateStr]: todayStyle };
       }
+      transaction.update(roomRef, roomUpdates);
       transaction.set(sceneRef, newScene);
       
       return { styleIndex: todayStyle! };

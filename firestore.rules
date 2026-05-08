@@ -68,7 +68,7 @@ service cloud.firestore {
              (data.get('needsRetry', false) is bool) &&
              data.get('createdBy', '') is string &&
              data.get('members', []) is list && data.get('members', []).size() <= 10 &&
-             (data.get('createdAt', null) == null || data.get('createdAt', null) is timestamp || data.get('createdAt', null) is string);
+             (data.get('createdAt', null) != null);
     }
 
     function isValidUserUsage(data) {
@@ -127,20 +127,23 @@ service cloud.firestore {
           return isVerified() && (request.auth.uid in resource.data.get('members', []));
         }
 
-        function isTargetSceneMember() {
-          return isVerified() && (request.auth.uid in incoming().get('members', []));
+        function isRoomMember() {
+          return isVerified() && (request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.get('members', []));
         }
 
-        allow get: if isVerified() && (isSceneMember() || isAdmin());
-        allow list: if isVerified() && (isSceneMember() || isAdmin());
+        allow get: if isVerified() && (isSceneMember() || isRoomMember() || isAdmin());
+        allow list: if isVerified() && (isSceneMember() || isRoomMember() || isAdmin());
 
-        allow create: if isVerified() && isValidScene(incoming()) && 
+        allow create: if isVerified() && (isAdmin() || (
+                         isValidScene(incoming()) && 
                          incoming().get('createdBy', '') == request.auth.uid && 
-                         isValidId(sceneId) && isTargetSceneMember();
+                         isValidId(sceneId) && 
+                         isRoomMember()
+                       ));
 
         allow update: if isVerified() && (
           isAdmin() ||
-          (isSceneMember() && isValidScene(incoming()) && 
+          (isRoomMember() && isValidScene(incoming()) && 
            incoming().get('createdBy', '') == existing().get('createdBy', '') && // creator is immutable
            incoming().get('members', []) == existing().get('members', []) && // members list should be immutable via scene update
            (
@@ -153,7 +156,7 @@ service cloud.firestore {
           )
         );
 
-        allow delete: if isVerified() && (existing().get('createdBy', '') == request.auth.uid || isAdmin());
+        allow delete: if isVerified() && (existing().get('createdBy', '') == request.auth.uid || isRoomMember() || isAdmin());
       }
     }
 

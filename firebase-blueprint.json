@@ -31,15 +31,20 @@
       "description": "A single scene in a storybook",
       "type": "object",
       "properties": {
+        "id": { "type": "string" },
         "roomId": { "type": "string" },
         "date": { "type": "string", "description": "YYYY-MM-DD" },
         "index": { "type": "number", "description": "0-9" },
         "text": { "type": "string" },
         "imageUrl": { "type": "string" },
+        "imageType": { "type": "string" },
+        "isGenerating": { "type": "boolean" },
+        "needsRetry": { "type": "boolean" },
         "createdBy": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "createdAt": { "type": "string", "format": "date-time" },
+        "members": { "type": "array", "items": { "type": "string" } }
       },
-      "required": ["roomId", "date", "index", "text", "createdBy", "createdAt"]
+      "required": ["roomId", "date", "index", "text", "createdBy", "createdAt", "members"]
     },
     "ImageCache": {
       "title": "Image Cache",
