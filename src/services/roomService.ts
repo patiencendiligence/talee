@@ -30,7 +30,8 @@ export async function deleteRoom(roomId: string, userId: string): Promise<void> 
 
     // 1. Delete all scenes in the room (subcollection)
     const scenesRef = collection(db, "rooms", roomId, "scenes");
-    const scenesSnap = await getDocs(scenesRef);
+    const q = query(scenesRef, where("members", "array-contains", userId));
+    const scenesSnap = await getDocs(q);
     const batch = writeBatch(db);
     scenesSnap.forEach((sceneDoc) => {
       batch.delete(sceneDoc.ref);
@@ -202,7 +203,12 @@ export async function addScene(roomId: string, userId: string, text: string, ind
     const generateBackgroundImageUrl = async () => {
       try {
         const scenesRef = collection(db, "rooms", roomId, "scenes");
-        const q = query(scenesRef, where("date", "==", dateStr), orderBy("index", "asc"));
+        const q = query(
+          scenesRef, 
+          where("date", "==", dateStr), 
+          where("members", "array-contains", userId),
+          orderBy("index", "asc")
+        );
         const snapshot = await getDocs(q);
         const previousScenes = snapshot.docs
           .map(d => d.data() as Scene)
@@ -296,7 +302,12 @@ export async function resumeGeneration(roomId: string, sceneId: string): Promise
 
     // Build context again
     const scenesRef = collection(db, "rooms", roomId, "scenes");
-    const q = query(scenesRef, where("date", "==", sceneData.date), orderBy("index", "asc"));
+    const q = query(
+      scenesRef, 
+      where("date", "==", sceneData.date), 
+      where("members", "array-contains", auth.currentUser?.uid),
+      orderBy("index", "asc")
+    );
     const snapshot = await getDocs(q);
     const previousScenes = snapshot.docs
       .map(d => d.data() as Scene)
@@ -342,7 +353,12 @@ export async function resumeGeneration(roomId: string, sceneId: string): Promise
 
 export async function getDailyScenes(roomId: string, date: string): Promise<Scene[]> {
   const scenesRef = collection(db, "rooms", roomId, "scenes");
-  const q = query(scenesRef, where("date", "==", date), orderBy("index", "asc"));
+  const q = query(
+    scenesRef, 
+    where("date", "==", date), 
+    where("members", "array-contains", auth.currentUser?.uid),
+    orderBy("index", "asc")
+  );
   try {
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => doc.data() as Scene);

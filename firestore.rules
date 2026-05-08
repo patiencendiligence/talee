@@ -67,7 +67,8 @@ service cloud.firestore {
              (data.get('isGenerating', false) is bool) &&
              (data.get('needsRetry', false) is bool) &&
              data.createdBy is string &&
-             (data.createdAt is timestamp || data.createdAt is string || data.createdAt == null);
+             data.members is list && data.members.size() <= 10 &&
+             (data.get('createdAt', null) == null || data.createdAt is timestamp || data.createdAt is string);
     }
 
     function isValidUserUsage(data) {
@@ -123,28 +124,28 @@ service cloud.firestore {
 
       match /scenes/{sceneId} {
         function isSceneMember() {
-          return isVerified() && (request.auth.uid in resource.data.members);
+          return isVerified() && (request.auth.uid in resource.data.get('members', []));
         }
 
         function isTargetSceneMember() {
-          return isVerified() && (request.auth.uid in incoming().members);
+          return isVerified() && (request.auth.uid in incoming().get('members', []));
         }
 
         allow get: if isVerified() && (isSceneMember() || isAdmin());
         allow list: if isVerified() && (isSceneMember() || isAdmin());
 
         allow create: if isVerified() && isValidScene(incoming()) && 
-                         incoming().createdBy == request.auth.uid && 
+                         incoming().get('createdBy', '') == request.auth.uid && 
                          isValidId(sceneId) && isTargetSceneMember();
 
         allow update: if isVerified() && (
           isAdmin() ||
           (isSceneMember() && isValidScene(incoming()) && 
-           incoming().createdBy == existing().createdBy && // creator is immutable
-           incoming().members == existing().members && // members list should be immutable via scene update
+           incoming().get('createdBy', '') == existing().get('createdBy', '') && // creator is immutable
+           incoming().get('members', []) == existing().get('members', []) && // members list should be immutable via scene update
            (
              // Action 1: Creator updating their own text/meta
-             (existing().createdBy == request.auth.uid && 
+             (existing().get('createdBy', '') == request.auth.uid && 
               incoming().diff(existing()).affectedKeys().hasAny(['text', 'imageUrl', 'imageType', 'isGenerating', 'needsRetry'])) ||
              // Action 2: Any member triggering AI retry/finish
              (incoming().diff(existing()).affectedKeys().hasOnly(['imageUrl', 'imageType', 'isGenerating', 'needsRetry']))
@@ -152,7 +153,7 @@ service cloud.firestore {
           )
         );
 
-        allow delete: if isVerified() && (existing().createdBy == request.auth.uid || isAdmin());
+        allow delete: if isVerified() && (existing().get('createdBy', '') == request.auth.uid || isAdmin());
       }
     }
 

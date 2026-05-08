@@ -49,6 +49,7 @@ export function ArchiveView({ roomId, onBack }: { roomId: string, onBack: () => 
     const q = query(
       scenesRef,
       where("date", "==", date),
+      where("members", "array-contains", auth.currentUser?.uid),
       orderBy("index", "asc")
     );
     

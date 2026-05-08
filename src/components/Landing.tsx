@@ -56,7 +56,7 @@ export function Landing({ onLogin }: { onLogin: () => Promise<void> }) {
         <div className="w-64 h-64 relative">
           <img 
             src={taleeImg} 
-            className="w-full h-full object-contain relative z-10 drop-shadow-2xl" 
+            className="w-full h-full object-contain relative z-10" 
             alt="Talee Character"
             referrerPolicy="no-referrer"
             loading="eager"
