@@ -2,7 +2,7 @@ import React, { useState, FormEvent } from 'react';
 import { UserProfile, Room } from '../types';
 import { createRoom } from '../services/roomService';
 import { doc, updateDoc, arrayUnion, getDoc } from 'firebase/firestore';
-import { db, auth } from '../lib/firebase';
+import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { AnimatePresence } from 'motion/react';
 import { useRooms } from '../hooks/useRooms';
 
@@ -35,7 +35,12 @@ export function Dashboard({ profile, onEnterRoom }: { profile: UserProfile | nul
       setShowCreate(false);
       onEnterRoom(id);
     } catch (err) {
-      alert("방 생성 실패: " + err);
+      if (err instanceof Error && err.message.startsWith('{')) {
+        const info = JSON.parse(err.message);
+        alert(`방 생성 실패: ${info.error}`);
+      } else {
+        handleFirestoreError(err, OperationType.WRITE, "rooms/new");
+      }
     } finally {
       setLoading(false);
     }
@@ -77,7 +82,12 @@ export function Dashboard({ profile, onEnterRoom }: { profile: UserProfile | nul
       setShowJoin(false);
       onEnterRoom(joinCode);
     } catch (err) {
-      alert("입장 실패: " + err);
+      if (err instanceof Error && err.message.startsWith('{')) {
+        const info = JSON.parse(err.message);
+        alert(`입장 실패: ${info.error}\n(권한 오류가 발생했습니다. 잠시 후 다시 시도해주세요.)`);
+      } else {
+        handleFirestoreError(err, OperationType.WRITE, `rooms/${joinCode}/join`);
+      }
     } finally {
       setLoading(false);
     }
