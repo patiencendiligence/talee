@@ -8,17 +8,7 @@ import { hashText } from "../lib/utils";
 import { compressImage, uploadImage } from "../utils/imageUtils";
 
 // Initialize Gemini with GoogleGenAI as per modern SDK guidelines
-const getGeminiKey = () => {
-  const key = (import.meta as any).env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
-  if (!key || key === "undefined") {
-    console.error("Gemini API Key is missing. Please set VITE_GEMINI_API_KEY in your .env file.");
-    return "";
-  }
-  return key;
-};
-
-const geminiKey = getGeminiKey();
-const ai = geminiKey ? new GoogleGenAI({ apiKey: geminiKey }) : null;
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const openai = new OpenAI({
   apiKey: (import.meta as any).env.VITE_OPENAI_API,
@@ -39,19 +29,19 @@ async function base64ToBlob(base64: string, mimeType: string): Promise<Blob> {
 }
 
 async function translateToEnglish(text: string): Promise<string> {
-  if (!ai) {
-    console.warn("Gemini AI not initialized, skipping translation");
+  if (!process.env.GEMINI_API_KEY) {
+    console.warn("Gemini API Key not found, skipping translation");
     return text;
   }
   try {
-    const model = (ai as any).getGenerativeModel({ model: "gemini-2.0-flash" });
-    const response = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: `Translate this scene description to English for an image generation prompt. Output ONLY the translated text: "${text}"` }] }],
-      generationConfig: {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: [{ role: "user", parts: [{ text: `Translate this scene description to English for a high-quality image generation prompt. Maintain all specific characters, animals, and objects (e.g., "magpie", "four-leaf clover"). Output ONLY the translated text: "${text}"` }] }],
+      config: {
         temperature: 0.1,
       }
     });
-    return response.response.text()?.trim() || text;
+    return response.text?.trim() || text;
   } catch (e) {
     console.warn("Translation failed, using original text:", e);
     return text;
@@ -120,18 +110,23 @@ export async function getStoryImage(text: string, stylePrompt: string, context?:
   const englishContext = context ? await translateToEnglish(context) : '';
 
   // Tier 1: Gemini AI (General Image Generation)
-  if (ai) {
+  if (process.env.GEMINI_API_KEY) {
     try {
-      console.log("[ImageService] Tier 1: Gemini...");
-      const systemPrompt = `You are a professional storybook illustrator. Create a beautiful illustration for this scene: "${englishText}". Style: ${stylePrompt}. Context: ${englishContext}. NO TEXT in image. High quality, whimsical art.`;
+      console.log("[ImageService] Tier 1: Gemini Image Generation...");
+      const fullPrompt = `Storybook illustration of: ${englishText}. Style: ${stylePrompt}. Ensure all main subjects are clearly depicted. Context: ${englishContext}. NO TEXT in image. High quality, whimsical art.`;
       
-      const model = (ai as any).getGenerativeModel({ model: "gemini-2.0-flash" });
-      const response = await model.generateContent({
-        contents: [{ role: "user", parts: [{ text: systemPrompt }] }],
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash-image",
+        contents: { parts: [{ text: fullPrompt }] },
+        config: {
+          imageConfig: {
+            aspectRatio: "1:1"
+          }
+        }
       });
 
       let rawBlob: Blob | null = null;
-      const candidates = response.response.candidates;
+      const candidates = (response as any).candidates;
       if (candidates?.[0]?.content?.parts) {
         for (const part of candidates[0].content.parts) {
           if (part.inlineData) {
@@ -144,6 +139,8 @@ export async function getStoryImage(text: string, stylePrompt: string, context?:
       if (rawBlob) {
         const imageUrl = await processAndCacheImage(rawBlob, hash, text, 'ai');
         return { imageUrl, type: 'ai' };
+      } else {
+        console.warn("[ImageService] Gemini returned no image data");
       }
     } catch (error: any) {
       const errorMsg = error.message || String(error);
